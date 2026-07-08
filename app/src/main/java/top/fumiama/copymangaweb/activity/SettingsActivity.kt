@@ -26,7 +26,7 @@ class SettingsActivity : Activity() {
         binding.siteUrl.setText(SiteConfig.get(this))
 
         add(binding.quality, "quality", arrayOf("原圖", "高 1500px", "中 1000px", "省流 750px"), arrayOf("0", "1500", "1000", "750"), "1500")
-        add(binding.preload, "preload", arrayOf("1 頁", "2 頁", "4 頁", "6 頁"), arrayOf("1", "2", "4", "6"), "2")
+        add(binding.preload, "preload", arrayOf("1 張", "3 張", "5 張", "8 張"), arrayOf("1", "3", "5", "8"), "3")
         add(binding.retry, "retry", arrayOf("不重試", "1 次", "2 次", "3 次"), arrayOf("0", "1", "2", "3"), "1")
         add(binding.cache, "cache", arrayOf("開啟", "關閉"), arrayOf("true", "false"), "true")
         add(binding.direction, "r2l", arrayOf("由右至左", "由左至右"), arrayOf("true", "false"), "true")
@@ -54,6 +54,7 @@ class SettingsActivity : Activity() {
             }
             properties["siteUrl"] = siteUrl
             fields.forEach { (key, spinner, values) -> properties[key] = values[spinner.selectedItemPosition] }
+            if (properties["vertical"] == "true") properties["noAnimation"] = "false"
             Toast.makeText(this, "設定已儲存", Toast.LENGTH_SHORT).show()
             finish()
         }
@@ -77,7 +78,9 @@ class SettingsActivity : Activity() {
     }
 
     private fun add(spinner: Spinner, key: String, labels: Array<String>, values: Array<String>, default: String) {
-        spinner.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, labels)
+        spinner.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, labels).apply {
+            setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+        }
         val current = properties[key].takeUnless { it == "null" } ?: default
         spinner.setSelection(values.indexOf(current).coerceAtLeast(0))
         fields += Triple(key, spinner, values)

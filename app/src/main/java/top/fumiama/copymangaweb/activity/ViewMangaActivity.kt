@@ -17,6 +17,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.SeekBar
 import android.widget.Toast
+import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import androidx.viewpager2.widget.ViewPager2
 import com.bumptech.glide.Glide
@@ -56,9 +57,10 @@ class ViewMangaActivity : ToolsBoxActivity() {
     val dlZip2View = mangaZip != null
     private val volTurnPage get() = p["volturn"] == "true"
     private val quality get() = p["quality"].toIntOrNull() ?: 1500
-    private val preload get() = p["preload"].toIntOrNull() ?: 2
+    private val preload get() = p["preload"].toIntOrNull() ?: 3
     private val retry get() = p["retry"].toIntOrNull() ?: 1
     private val useCache get() = p["cache"] != "false"
+    private val verticalReading get() = p["vertical"] == "true"
     var pageNum = 1
         get() {
             field = getPageNumber()
@@ -86,7 +88,7 @@ class ViewMangaActivity : ToolsBoxActivity() {
         va = WeakReference(this)
         p = PropertiesTools(File("$filesDir/settings.properties"))
         r2l = p["r2l"] == "true"
-        notUseVP = p["noAnimation"] == "true"
+        notUseVP = p["noAnimation"] == "true" && !verticalReading
         handler = MyHandler(toolsBox)
         tt = TimeThread(handler, 22)
         tt.canDo = true
@@ -150,11 +152,19 @@ class ViewMangaActivity : ToolsBoxActivity() {
     }
 
     private fun getPageNumber(): Int {
+        if (verticalReading && !notUseVP) {
+            val manager = mBinding.vcontinuous.layoutManager as? LinearLayoutManager
+            return (manager?.findFirstVisibleItemPosition() ?: 0) + 1
+        }
         return if (r2l && !notUseVP) count - mBinding.vp.currentItem
         else (if (notUseVP) currentItem else mBinding.vp.currentItem) + 1
     }
 
     private fun setPageNumber(num: Int) {
+        if (verticalReading && !notUseVP) {
+            mBinding.vcontinuous.apply { post { scrollToPosition((num - 1).coerceIn(0, (count - 1).coerceAtLeast(0))) } }
+            return
+        }
         if (r2l && !notUseVP) mBinding.vp.apply { post { currentItem = count - num } }
         else if (notUseVP) currentItem = num - 1 else mBinding.vp.currentItem = num - 1
     }
@@ -221,12 +231,33 @@ class ViewMangaActivity : ToolsBoxActivity() {
     }
 
     private fun prepareVP() {
+        mBinding.vp.apply { post {
+            orientation = if (verticalReading) ViewPager2.ORIENTATION_VERTICAL else ViewPager2.ORIENTATION_HORIZONTAL
+        } }
         if (notUseVP) {
             mBinding.vp.apply { post { visibility = View.INVISIBLE } }
+            mBinding.vcontinuous.apply { post { visibility = View.INVISIBLE } }
             mBinding.vone.root.apply { post { visibility = View.VISIBLE } }
+        } else if (verticalReading) {
+            mBinding.vp.apply { post { visibility = View.INVISIBLE } }
+            mBinding.vone.root.apply { post { visibility = View.INVISIBLE } }
+            mBinding.vcontinuous.apply { post {
+                visibility = View.VISIBLE
+                layoutManager = LinearLayoutManager(this@ViewMangaActivity)
+                setItemViewCacheSize(preload.coerceIn(1, 10))
+                adapter = ContinuousViewData(this).RecyclerViewAdapter().also { onlineAdapter = it }
+                clearOnScrollListeners()
+                addOnScrollListener(object : RecyclerView.OnScrollListener() {
+                    override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
+                        updateSeekBar()
+                        super.onScrolled(recyclerView, dx, dy)
+                    }
+                })
+            } }
         } else {
             mBinding.vp.apply { post {
                 visibility = View.VISIBLE
+                orientation = if (verticalReading) ViewPager2.ORIENTATION_VERTICAL else ViewPager2.ORIENTATION_HORIZONTAL
                 offscreenPageLimit = preload.coerceIn(1, 10)
                 adapter = ViewData(this).RecyclerViewAdapter().also { onlineAdapter = it }
                 registerOnPageChangeCallback(object : ViewPager2.OnPageChangeCallback() {
@@ -238,6 +269,7 @@ class ViewMangaActivity : ToolsBoxActivity() {
                 if (r2l) currentItem = count - 1
             } }
             mBinding.vone.root.apply { post { visibility = View.INVISIBLE } }
+            mBinding.vcontinuous.apply { post { visibility = View.INVISIBLE } }
         }
     }
 
@@ -280,19 +312,18 @@ class ViewMangaActivity : ToolsBoxActivity() {
 
     private fun prepareIdBtVH() {
         mBinding.infcard.idtbvh.apply { post {
-            isChecked = p["vertical"] == "true"
+            isChecked = verticalReading
             setOnClickListener {
                 if (mBinding.infcard.idtbvh.isChecked) {
                     mBinding.vp.apply { post { orientation = ViewPager2.ORIENTATION_VERTICAL } }
                     p["vertical"] = "true"
+                    p["noAnimation"] = "false"
                 } else {
                     mBinding.vp.apply { post { orientation = ViewPager2.ORIENTATION_HORIZONTAL } }
                     p["vertical"] = "false"
                 }
+                Toast.makeText(this@ViewMangaActivity, "下次浏览生效", Toast.LENGTH_SHORT).show()
             }
-            if (isChecked) mBinding.vp.apply { post {
-                orientation = ViewPager2.ORIENTATION_VERTICAL
-            } }
         } }
     }
 
@@ -337,7 +368,7 @@ class ViewMangaActivity : ToolsBoxActivity() {
     }
 
     private fun updateSeekProgress() {
-        mBinding.oneinfo.infseek.apply { post { progress = pageNum * 100 / count } }
+        mBinding.oneinfo.infseek.apply { post { progress = if (count > 0) pageNum * 100 / count else 0 } }
     }
 
     @Deprecated("Deprecated in Java")
@@ -378,6 +409,36 @@ class ViewMangaActivity : ToolsBoxActivity() {
             override fun getItemCount(): Int {
                 return count
             }
+        }
+    }
+
+    inner class ContinuousViewData(itemView: View) : RecyclerView.ViewHolder(itemView) {
+        inner class RecyclerViewAdapter : RecyclerView.Adapter<ContinuousViewData>() {
+            override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ContinuousViewData {
+                return ContinuousViewData(
+                    LayoutInflater.from(parent.context)
+                        .inflate(R.layout.page_imgview_continuous, parent, false)
+                )
+            }
+
+            override fun onBindViewHolder(holder: ContinuousViewData, position: Int) {
+                holder.itemView.findViewById<ScaleImageView>(R.id.onei)?.let { oneImage ->
+                    if (dlZip2View) getImgBitmap(position)?.let { oneImage.setImageBitmap(it) }
+                    else {
+                        loadOnlineImage(imgUrls[position], oneImage)
+                        for (offset in 1..preload.coerceIn(1, 10)) {
+                            val next = position + offset
+                            if (next < imgUrls.size) Glide.with(this@ViewMangaActivity)
+                                .load(toolsBox.resolution.wrap(imgUrls[next], quality))
+                                .diskCacheStrategy(if (useCache) DiskCacheStrategy.AUTOMATIC else DiskCacheStrategy.NONE)
+                                .skipMemoryCache(!useCache)
+                                .preload()
+                        }
+                    }
+                }
+            }
+
+            override fun getItemCount(): Int = count
         }
     }
 
