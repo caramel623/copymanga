@@ -15,6 +15,36 @@ if (typeof (loaded) == "undefined") {
         let prevHeight = document.body.scrollHeight;
         let lastTime = 0;
         let ticking = false;
+        let batchStart = 0;
+        let sentImages = 0;
+        let readerStarted = false;
+        const backgroundDownload = GM.isDownloadMode();
+        const batchSize = backgroundDownload ? Math.min(5, Math.max(1, GM.getDownloadBatchSize())) : 999999;
+        const effectiveSpeed = backgroundDownload ? Math.min(speed, 80) : speed;
+        const effectiveInterval = backgroundDownload ? Math.max(interval, 120) : interval;
+        function chapterHeader() {
+            var nextChapter = document.getElementsByClassName("comicContent-next")[0].getElementsByTagName("a")[0].href;
+            var prevChapter = document.getElementsByClassName("comicContent-prev")[1].getElementsByTagName("a")[0].href;
+            if(nextChapter == location.href) nextChapter = "null";
+            if(prevChapter == location.href) prevChapter = "null";
+            return document.title.split(" - ")[1] + " " + location.href.substring(location.href.lastIndexOf("/")+1) + "\n" + nextChapter + "\n" + prevChapter;
+        }
+        function emitReaderChunk(finalChunk) {
+            if (backgroundDownload) return;
+            var images = document.getElementsByClassName("container-fluid comicContent")[0].getElementsByTagName("li");
+            var available = Array();
+            for (var i = sentImages; i < images.length; i++) {
+                var img = images[i].getElementsByTagName("img")[0];
+                if (!img || !img.dataset.src) break;
+                available.push(img.dataset.src);
+            }
+            var amount = finalChunk ? available.length : Math.floor(available.length / 50) * 50;
+            if (amount <= 0) return;
+            var chunk = available.slice(0, amount).join("\n");
+            GM.loadChapterChunk((readerStarted ? "" : chapterHeader() + "\n") + chunk, !readerStarted, finalChunk);
+            readerStarted = true;
+            sentImages += amount;
+        }
         function requestTick() {
             if (!ticking) {
                 ticking = true;
@@ -24,24 +54,30 @@ if (typeof (loaded) == "undefined") {
         function step(timestamp) {
             if (!lastTime) lastTime = timestamp;
             const elapsed = timestamp - lastTime;
-            if (elapsed >= interval) {
-                const index = document.getElementsByClassName("comicIndex")[0].innerText;
-                const count = document.getElementsByClassName("comicCount")[0].innerText;
-                GM.setLoadingDialogProgress(index, count);
-                window.scrollBy(0, speed);
+            if (elapsed >= effectiveInterval) {
+                const index = parseInt(document.getElementsByClassName("comicIndex")[0].innerText) || 0;
+                const count = parseInt(document.getElementsByClassName("comicCount")[0].innerText) || 0;
+                GM.setLoadingDialogProgress((backgroundDownload ? "背景載入 " : "") + index, count.toString());
+                emitReaderChunk(false);
+                if (backgroundDownload && batchStart == 0) batchStart = index;
+                if (backgroundDownload && index - batchStart >= batchSize) {
+                    batchStart = index;
+                    ticking = false;
+                    const wait = 1000 + Math.floor(Math.random() * 19001);
+                    setTimeout(requestTick, wait);
+                    return;
+                }
+                window.scrollBy(0, effectiveSpeed);
                 lastTime = timestamp;
                 const currentHeight = document.body.scrollHeight;
                 if (Math.round(window.innerHeight+window.scrollY+0.5) >= currentHeight) { /*避免小数不符无法触发*/
                     if (currentHeight === prevHeight) {
                         var images = document.getElementsByClassName("container-fluid comicContent")[0].getElementsByTagName("li");
-                        var nextChapter = document.getElementsByClassName("comicContent-next")[0].getElementsByTagName("a")[0].href;
-                        var prevChapter = document.getElementsByClassName("comicContent-prev")[1].getElementsByTagName("a")[0].href;
-                        if(nextChapter == location.href) nextChapter = "null";
-                        if(prevChapter == location.href) prevChapter = "null";
-                        var result = document.title.split(" - ")[1] + " " + location.href.substring(location.href.lastIndexOf("/")+1) + "\n" + nextChapter + "\n" + prevChapter;
+                        var result = chapterHeader();
                         for(var i = 0; i < images.length; i++) result += "\n" + images[i].getElementsByTagName("img")[0].dataset.src;
                         GM.setLoadingDialog(false);
-                        GM.loadChapter(result);
+                        if (backgroundDownload) GM.loadChapter(result);
+                        else emitReaderChunk(true);
                         return;
                     }
                     prevHeight = currentHeight;
@@ -56,7 +92,7 @@ if (typeof (loaded) == "undefined") {
         var url = location.href;
         if(url.indexOf("/chapter/") > 0){
             GM.setLoadingDialog(true);
-            smoothLoadChapter(320, 16);
+            smoothLoadChapter(GM.getChapterLoadSpeed(), 16);
         } else {
             var json = Array();
             var chapters = document.getElementsByClassName("upLoop")[0].children;

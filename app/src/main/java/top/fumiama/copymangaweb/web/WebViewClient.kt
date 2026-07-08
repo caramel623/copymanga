@@ -14,6 +14,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import top.fumiama.copymangaweb.R
+import top.fumiama.copymangaweb.tool.SiteConfig
 import top.fumiama.copymangaweb.activity.MainActivity.Companion.wm
 
 class WebViewClient(private val context: Context, jsFileName: String):WebViewClient() {
@@ -22,7 +23,7 @@ class WebViewClient(private val context: Context, jsFileName: String):WebViewCli
         super.onPageStarted(view, url, favicon)
         Log.d("MyWC", "Load URL: $url")
         url?.let {
-            if(!it.startsWith(context.getString(R.string.web_home)) && !it.startsWith(context.getString(R.string.web_home_www))){
+            if(!SiteConfig.isAllowed(context, it)){
                 view?.goBack()
                 Toast.makeText(context, R.string.blocked_ad, Toast.LENGTH_SHORT).show()
             }

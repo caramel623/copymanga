@@ -225,7 +225,7 @@ class DlActivity : ToolsBoxActivity() {
             }
         i.hash?.let {
             mangaDlTools.dlChapterAndPackIntoZip(
-                File("${getExternalFilesDir("")}/$comicName/${i.hint}/${i.textOn}.zip"),
+                localChapterZip(i.textOn.toString()),
                 it
             )
         }
@@ -249,13 +249,13 @@ class DlActivity : ToolsBoxActivity() {
         tbvTbtn.url = url
         tbtncnt++
         val zipPosition = ViewMangaActivity.zipList?.size
-        ViewMangaActivity.zipList = ViewMangaActivity.zipList?.plus("$title.zip")
+        ViewMangaActivity.zipList = ViewMangaActivity.zipList?.plus(localChapterZip(title).name)
         tbvTbtn.textOff = title
         tbvTbtn.textOn = title
         tbvTbtn.text = title
         tbvTbtn.hint = caption
         tbvTbtn.layoutParams.width = btnw
-        val zipFile = File("${getExternalFilesDir("")}/$comicName/$caption/$title.zip")
+        val zipFile = localChapterZip(title)
         if (zipFile.exists()) {
             tbvTbtn.setBackgroundResource(R.drawable.rndbg_checked)
             tbvTbtn.isChecked = false
@@ -311,7 +311,7 @@ class DlActivity : ToolsBoxActivity() {
     fun deleteChapters() {
         for (i in tbtnlist) {
             if (i.isChecked) {
-                val f = File("${getExternalFilesDir("")}/$comicName/${i.hint}/${i.textOn}.zip")
+                val f = localChapterZip(i.textOn.toString())
                 if (f.exists()) {
                     deleteChapter(f, i)
                     checkedChapter--
@@ -336,6 +336,11 @@ class DlActivity : ToolsBoxActivity() {
             setBackgroundResource(R.drawable.toggle_button)
             isChecked = false
         } }
+    }
+
+    private fun localChapterZip(chapter: String): File {
+        val name = "$comicName-$chapter".replace(Regex("[\\/:*?\"<>|]"), "_")
+        return File(File(getExternalFilesDir(""), comicName), "$name.zip")
     }
 
     @SuppressLint("SetTextI18n")

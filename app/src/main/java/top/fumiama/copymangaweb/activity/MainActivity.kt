@@ -23,6 +23,7 @@ import top.fumiama.copymangaweb.handler.MainHandler
 import top.fumiama.copymangaweb.tool.MangaDlTools.Companion.wmdlt
 import top.fumiama.copymangaweb.tool.SetDraggable
 import top.fumiama.copymangaweb.tool.Updater
+import top.fumiama.copymangaweb.tool.SiteConfig
 import top.fumiama.copymangaweb.web.JS
 import top.fumiama.copymangaweb.web.JSHidden
 import top.fumiama.copymangaweb.web.WebChromeClient
@@ -33,6 +34,7 @@ class MainActivity: ToolsBoxActivity() {
     var saveUrlsOnly = false
     lateinit var mBinding: ActivityMainBinding
     private val mViewModel = MainViewModel()
+    private var currentSiteUrl = ""
 
     @SuppressLint("JavascriptInterface")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -61,7 +63,8 @@ class MainActivity: ToolsBoxActivity() {
                 setWebViewClient("i.js")
                 webChromeClient = WebChromeClient()
                 loadJSInterface(JS())
-                loadUrl(getString(R.string.web_home))
+                currentSiteUrl = SiteConfig.get(this@MainActivity)
+                loadUrl(currentSiteUrl)
             } }
 
             mBinding.wh.apply { post {
@@ -72,6 +75,17 @@ class MainActivity: ToolsBoxActivity() {
             } }
         }
         SetDraggable().with(this).onto(mBinding.fab)
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (::mBinding.isInitialized && currentSiteUrl.isNotEmpty()) {
+            val configuredUrl = SiteConfig.get(this)
+            if (configuredUrl != currentSiteUrl) {
+                currentSiteUrl = configuredUrl
+                mBinding.w.loadUrl(configuredUrl)
+            }
+        }
     }
 
     @Deprecated("Deprecated in Java")
@@ -156,6 +170,10 @@ class MainActivity: ToolsBoxActivity() {
         )
     }
 
+    fun openSettings(v: View) {
+        startActivity(Intent(this, SettingsActivity::class.java))
+    }
+
     fun openImageChooserActivity() {
         // 调用自己的图库
         startActivityForResult(
@@ -183,6 +201,25 @@ class MainActivity: ToolsBoxActivity() {
                 var imgs = arrayOf<String>()
                 for(i in 3 until listChapter.size) imgs += listChapter[i]
                 wmdlt?.get()?.setChapterImages(listChapter[0].substringAfterLast(' '), imgs)
+            }
+        } }
+    }
+
+    @Synchronized
+    fun callViewMangaChunk(content: String, first: Boolean, finished: Boolean) {
+        lifecycleScope.launch { withContext(Dispatchers.IO) {
+            val lines = content.split('\n').filter { it.isNotBlank() }
+            if (first) {
+                if (lines.size < 4) return@withContext
+                ViewMangaActivity.titleText = lines[0].substringBeforeLast(' ')
+                ViewMangaActivity.nextChapterUrl = lines[1].let { if (it == "null") null else it }
+                ViewMangaActivity.previousChapterUrl = lines[2].let { if (it == "null") null else it }
+                ViewMangaActivity.imgUrls = lines.drop(3).toTypedArray()
+                withContext(Dispatchers.Main) {
+                    startActivity(Intent(this@MainActivity, ViewMangaActivity::class.java))
+                }
+            } else {
+                ViewMangaActivity.appendOnlineImages(lines.toTypedArray(), finished)
             }
         } }
     }

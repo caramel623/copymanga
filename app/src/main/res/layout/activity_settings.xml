@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#FCFCFF">
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="20dp">
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="設定" android:textSize="24sp" android:textStyle="bold" />
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="20dp" android:text="網站設定" android:textSize="18sp" android:textStyle="bold" />
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="網站入口網址" />
+        <EditText
+            android:id="@+id/siteUrl"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:hint="https://2025copy.com/"
+            android:inputType="textUri"
+            android:singleLine="true" />
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="20dp" android:text="閱讀設定" android:textSize="18sp" android:textStyle="bold" />
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="圖片畫質" />
+        <Spinner android:id="@+id/quality" android:layout_width="match_parent" android:layout_height="48dp" />
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="預載頁數" />
+        <Spinner android:id="@+id/preload" android:layout_width="match_parent" android:layout_height="48dp" />
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="圖片失敗重試" />
+        <Spinner android:id="@+id/retry" android:layout_width="match_parent" android:layout_height="48dp" />
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="圖片快取" />
+        <Spinner android:id="@+id/cache" android:layout_width="match_parent" android:layout_height="48dp" />
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="閱讀方向" />
+        <Spinner android:id="@+id/direction" android:layout_width="match_parent" android:layout_height="48dp" />
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="顯示模式" />
+        <Spinner android:id="@+id/displayMode" android:layout_width="match_parent" android:layout_height="48dp" />
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="滑頁方向" />
+        <Spinner android:id="@+id/pageOrientation" android:layout_width="match_parent" android:layout_height="48dp" />
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="輕小說繁簡轉換" />
+        <Spinner android:id="@+id/ranobeTraditional" android:layout_width="match_parent" android:layout_height="48dp" />
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="20dp" android:text="下載設定" android:textSize="18sp" android:textStyle="bold" />
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="下載位置" />
+        <TextView android:id="@+id/downloadLocation" android:layout_width="match_parent" android:layout_height="wrap_content" android:padding="8dp" />
+        <Button android:id="@+id/selectDownloadLocation" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="選擇下載資料夾" />
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="章節儲存格式" />
+        <Spinner android:id="@+id/compressZip" android:layout_width="match_parent" android:layout_height="48dp" />
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="背景載入速度" />
+        <Spinner android:id="@+id/loadSpeed" android:layout_width="match_parent" android:layout_height="48dp" />
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="每批圖片數（最多 5 張）" />
+        <Spinner android:id="@+id/downloadBatchSize" android:layout_width="match_parent" android:layout_height="48dp" />
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="每批後隨機等待 1–20 秒" />
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="20dp" android:text="書架設定" android:textSize="18sp" android:textStyle="bold" />
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="排序依據" />
+        <Spinner android:id="@+id/bookrackSortField" android:layout_width="match_parent" android:layout_height="48dp" />
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="排序方向" />
+        <Spinner android:id="@+id/bookrackSortDirection" android:layout_width="match_parent" android:layout_height="48dp" />
+        <Button android:id="@+id/save" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="24dp" android:text="儲存設定" />
+    </LinearLayout>
+</ScrollView>

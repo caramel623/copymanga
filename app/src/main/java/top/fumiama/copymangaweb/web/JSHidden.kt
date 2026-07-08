@@ -6,11 +6,32 @@ import top.fumiama.copymangaweb.activity.DlActivity
 import top.fumiama.copymangaweb.activity.MainActivity.Companion.mh
 import top.fumiama.copymangaweb.activity.MainActivity.Companion.wm
 import top.fumiama.copymangaweb.handler.MainHandler
+import top.fumiama.copymangaweb.tool.PropertiesTools
+import top.fumiama.copymangaweb.tool.MangaDlTools.Companion.wmdlt
+import java.io.File
 
 class JSHidden {
     @JavascriptInterface
+    fun isDownloadMode(): Boolean = wm?.get()?.saveUrlsOnly == true
+
+    @JavascriptInterface
+    fun getDownloadBatchSize(): Int {
+        val activity = wm?.get() ?: return 5
+        return (PropertiesTools(File("${activity.filesDir}/settings.properties"))["downloadBatchSize"]
+            .toIntOrNull() ?: 5).coerceIn(1, 5)
+    }
+    @JavascriptInterface
+    fun getChapterLoadSpeed(): Int {
+        val activity = wm?.get() ?: return 320
+        return PropertiesTools(File("${activity.filesDir}/settings.properties"))["loadSpeed"].toIntOrNull() ?: 320
+    }
+    @JavascriptInterface
     fun loadChapter(listString: String){
         wm?.get()?.callViewManga(listString)
+    }
+    @JavascriptInterface
+    fun loadChapterChunk(content: String, first: Boolean, finished: Boolean) {
+        wm?.get()?.callViewMangaChunk(content, first, finished)
     }
     @JavascriptInterface
     fun setTitle(title:String){
@@ -27,6 +48,7 @@ class JSHidden {
     }
     @JavascriptInterface
     fun setLoadingDialogProgress(index: String, count: String) {
+        if (isDownloadMode()) wmdlt?.get()?.updateScanProgress(index, count)
         mh?.obtainMessage(MainHandler.SET_LOADING_DIALOG_TEXT, "$index/$count")?.sendToTarget()
     }
 }

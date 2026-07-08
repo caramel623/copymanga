@@ -20,6 +20,7 @@ import android.widget.Toast
 import androidx.recyclerview.widget.RecyclerView
 import androidx.viewpager2.widget.ViewPager2
 import com.bumptech.glide.Glide
+import com.bumptech.glide.load.engine.DiskCacheStrategy
 import top.fumiama.copymangaweb.R
 import top.fumiama.copymangaweb.activity.MainActivity.Companion.wm
 import top.fumiama.copymangaweb.activity.template.ToolsBoxActivity
@@ -50,9 +51,14 @@ class ViewMangaActivity : ToolsBoxActivity() {
     private var isInSeek = false
     private var currentItem = 0
     private var notUseVP = true
+    private var onlineAdapter: RecyclerView.Adapter<*>? = null
     private var mangaZip = zipFile
     val dlZip2View = mangaZip != null
     private val volTurnPage get() = p["volturn"] == "true"
+    private val quality get() = p["quality"].toIntOrNull() ?: 1500
+    private val preload get() = p["preload"].toIntOrNull() ?: 2
+    private val retry get() = p["retry"].toIntOrNull() ?: 1
+    private val useCache get() = p["cache"] != "false"
     var pageNum = 1
         get() {
             field = getPageNumber()
@@ -163,12 +169,17 @@ class ViewMangaActivity : ToolsBoxActivity() {
 
     private fun loadOneImg() {
         if(dlZip2View) mBinding.vone.onei.apply { post { setImageBitmap(getImgBitmap(currentItem)) } }
-        else Glide.with(this@ViewMangaActivity)
-            .load(toolsBox.resolution.wrap(imgUrls[currentItem]))
-            .placeholder(R.drawable.ic_dl)
-            .dontAnimate()
-            .into(mBinding.vone.onei)
+        else loadOnlineImage(imgUrls[currentItem], mBinding.vone.onei)
         updateSeekBar()
+    }
+
+    private fun loadOnlineImage(url: String, target: ScaleImageView) {
+        val imageUrl = toolsBox.resolution.wrap(url, quality)
+        var request = Glide.with(this).load(imageUrl)
+            .diskCacheStrategy(if (useCache) DiskCacheStrategy.AUTOMATIC else DiskCacheStrategy.NONE)
+            .skipMemoryCache(!useCache).placeholder(R.drawable.ic_dl).dontAnimate().timeout(10000)
+        repeat(retry.coerceIn(0, 3)) { request = request.error(Glide.with(this).load(imageUrl)) }
+        request.into(target)
     }
 
     private fun setIdPosition(position: Int) {
@@ -216,7 +227,8 @@ class ViewMangaActivity : ToolsBoxActivity() {
         } else {
             mBinding.vp.apply { post {
                 visibility = View.VISIBLE
-                adapter = ViewData(this).RecyclerViewAdapter()
+                offscreenPageLimit = preload.coerceIn(1, 10)
+                adapter = ViewData(this).RecyclerViewAdapter().also { onlineAdapter = it }
                 registerOnPageChangeCallback(object : ViewPager2.OnPageChangeCallback() {
                     override fun onPageSelected(position: Int) {
                         updateSeekBar()
@@ -359,10 +371,7 @@ class ViewMangaActivity : ToolsBoxActivity() {
                         //Glide.with(this@ViewMangaActivity).load(it).placeholder(R.drawable.bg_comment).into(holder.itemView.onei)
                         oneImage.setImageBitmap(it)
                     }
-                    else Glide.with(this@ViewMangaActivity)
-                        .load(toolsBox.resolution.wrap(imgUrls[pos])).placeholder(R.drawable.ic_dl)
-                        .dontAnimate().timeout(10000)
-                        .into(oneImage)
+                    else loadOnlineImage(imgUrls[pos], oneImage)
                 }
             }
 
@@ -466,5 +475,21 @@ class ViewMangaActivity : ToolsBoxActivity() {
         var zipList: Array<String>? = null
         var cd: File? = null
         var pn = -1
+
+        @Synchronized
+        fun appendOnlineImages(urls: Array<String>, finished: Boolean) {
+            if (urls.isEmpty()) return
+            val start = imgUrls.size
+            imgUrls += urls
+            va?.get()?.runOnUiThread {
+                va?.get()?.apply {
+                    count = imgUrls.size
+                    if (r2l) onlineAdapter?.notifyDataSetChanged()
+                    else onlineAdapter?.notifyItemRangeInserted(start, urls.size)
+                    updateSeekText()
+                    if (finished) Log.d("MyVM", "All streamed images loaded: $count")
+                }
+            }
+        }
     }
 }
