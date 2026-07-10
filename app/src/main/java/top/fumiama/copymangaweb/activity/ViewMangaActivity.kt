@@ -243,6 +243,8 @@ class ViewMangaActivity : ToolsBoxActivity() {
             mBinding.vone.root.apply { post { visibility = View.INVISIBLE } }
             mBinding.vcontinuous.apply { post {
                 visibility = View.VISIBLE
+                setPadding(0, toolsBox.dp2px(64) ?: 64, 0, toolsBox.dp2px(64) ?: 64)
+                clipToPadding = false
                 layoutManager = LinearLayoutManager(this@ViewMangaActivity)
                 setItemViewCacheSize(preload.coerceIn(1, 10))
                 adapter = ContinuousViewData(this).RecyclerViewAdapter().also { onlineAdapter = it }
@@ -254,6 +256,7 @@ class ViewMangaActivity : ToolsBoxActivity() {
                     }
                 })
             } }
+            prepareContinuousChapterButtons()
         } else {
             mBinding.vp.apply { post {
                 visibility = View.VISIBLE
@@ -271,6 +274,20 @@ class ViewMangaActivity : ToolsBoxActivity() {
             mBinding.vone.root.apply { post { visibility = View.INVISIBLE } }
             mBinding.vcontinuous.apply { post { visibility = View.INVISIBLE } }
         }
+    }
+
+    private fun prepareContinuousChapterButtons() {
+        mBinding.continuousPrevious.visibility = View.VISIBLE
+        mBinding.continuousNext.visibility = View.VISIBLE
+        val hasPrevious = previousChapterUrl != null || (dlZip2View && zipPosition > 0)
+        val hasNext = nextChapterUrl != null || (dlZip2View && zipPosition + 1 < (zipList?.size ?: 0))
+        mBinding.continuousPrevious.text = if (hasPrevious) "上一章節" else "已到開頭"
+        mBinding.continuousNext.text = if (hasNext) "下一章節" else "已到結尾"
+        mBinding.continuousPrevious.isEnabled = hasPrevious
+        mBinding.continuousNext.isEnabled = hasNext
+        val pages = top.fumiama.copymangaweb.tool.PagesManager(WeakReference(this))
+        mBinding.continuousPrevious.setOnClickListener { pages.jumpChapter(false) }
+        mBinding.continuousNext.setOnClickListener { pages.jumpChapter(true) }
     }
 
     private fun updateSeekBar() {

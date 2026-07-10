@@ -13,6 +13,11 @@ class PagesManager(w: WeakReference<ViewMangaActivity>) {
     private var isEndR = false
     fun toPreviousPage(){ toPage(v?.r2l==true) }
     fun toNextPage(){ toPage(v?.r2l!=true) }
+    fun jumpChapter(goNext: Boolean) {
+        if (v == null || v.clicked) return
+        if (goNext) isEndR = true else isEndL = true
+        toPage(goNext)
+    }
     private fun judgePrevious() = (v?.pageNum ?: 0) > 1
     private fun judgeNext() = (v?.pageNum ?: 0) < (v?.count ?: 0)
     private fun toPage(goNext:Boolean){
