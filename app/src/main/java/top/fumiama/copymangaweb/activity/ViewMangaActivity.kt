@@ -28,6 +28,7 @@ import top.fumiama.copymangaweb.activity.template.ToolsBoxActivity
 import top.fumiama.copymangaweb.databinding.ActivityViewmangaBinding
 import top.fumiama.copymangaweb.handler.TimeThread
 import top.fumiama.copymangaweb.tool.PropertiesTools
+import top.fumiama.copymangaweb.tool.PagesManager
 import top.fumiama.copymangaweb.tool.ToolsBox
 import top.fumiama.copymangaweb.view.ScaleImageView
 import java.io.File
@@ -154,7 +155,7 @@ class ViewMangaActivity : ToolsBoxActivity() {
     private fun getPageNumber(): Int {
         if (verticalReading && !notUseVP) {
             val manager = mBinding.vcontinuous.layoutManager as? LinearLayoutManager
-            return (manager?.findFirstVisibleItemPosition() ?: 0) + 1
+            return ((manager?.findFirstVisibleItemPosition() ?: 1) - 1).coerceAtLeast(0) + 1
         }
         return if (r2l && !notUseVP) count - mBinding.vp.currentItem
         else (if (notUseVP) currentItem else mBinding.vp.currentItem) + 1
@@ -243,8 +244,8 @@ class ViewMangaActivity : ToolsBoxActivity() {
             mBinding.vone.root.apply { post { visibility = View.INVISIBLE } }
             mBinding.vcontinuous.apply { post {
                 visibility = View.VISIBLE
-                setPadding(0, toolsBox.dp2px(64) ?: 64, 0, toolsBox.dp2px(64) ?: 64)
-                clipToPadding = false
+                setPadding(0, 0, 0, 0)
+                clipToPadding = true
                 layoutManager = LinearLayoutManager(this@ViewMangaActivity)
                 setItemViewCacheSize(preload.coerceIn(1, 10))
                 adapter = ContinuousViewData(this).RecyclerViewAdapter().also { onlineAdapter = it }
@@ -256,7 +257,6 @@ class ViewMangaActivity : ToolsBoxActivity() {
                     }
                 })
             } }
-            prepareContinuousChapterButtons()
         } else {
             mBinding.vp.apply { post {
                 visibility = View.VISIBLE
@@ -274,20 +274,6 @@ class ViewMangaActivity : ToolsBoxActivity() {
             mBinding.vone.root.apply { post { visibility = View.INVISIBLE } }
             mBinding.vcontinuous.apply { post { visibility = View.INVISIBLE } }
         }
-    }
-
-    private fun prepareContinuousChapterButtons() {
-        mBinding.continuousPrevious.visibility = View.VISIBLE
-        mBinding.continuousNext.visibility = View.VISIBLE
-        val hasPrevious = previousChapterUrl != null || (dlZip2View && zipPosition > 0)
-        val hasNext = nextChapterUrl != null || (dlZip2View && zipPosition + 1 < (zipList?.size ?: 0))
-        mBinding.continuousPrevious.text = if (hasPrevious) "上一章節" else "已到開頭"
-        mBinding.continuousNext.text = if (hasNext) "下一章節" else "已到結尾"
-        mBinding.continuousPrevious.isEnabled = hasPrevious
-        mBinding.continuousNext.isEnabled = hasNext
-        val pages = top.fumiama.copymangaweb.tool.PagesManager(WeakReference(this))
-        mBinding.continuousPrevious.setOnClickListener { pages.jumpChapter(false) }
-        mBinding.continuousNext.setOnClickListener { pages.jumpChapter(true) }
     }
 
     private fun updateSeekBar() {
@@ -431,7 +417,17 @@ class ViewMangaActivity : ToolsBoxActivity() {
 
     inner class ContinuousViewData(itemView: View) : RecyclerView.ViewHolder(itemView) {
         inner class RecyclerViewAdapter : RecyclerView.Adapter<ContinuousViewData>() {
+            private val header = 0
+            private val image = 1
+            private val footer = 2
             override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ContinuousViewData {
+                if (viewType != image) {
+                    val button = android.widget.Button(parent.context).apply {
+                        layoutParams = RecyclerView.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
+                        setPadding(0, 12, 0, 12)
+                    }
+                    return ContinuousViewData(button)
+                }
                 return ContinuousViewData(
                     LayoutInflater.from(parent.context)
                         .inflate(R.layout.page_imgview_continuous, parent, false)
@@ -439,12 +435,24 @@ class ViewMangaActivity : ToolsBoxActivity() {
             }
 
             override fun onBindViewHolder(holder: ContinuousViewData, position: Int) {
+                if (position == 0 || position == count + 1) {
+                    val goNext = position == count + 1
+                    val available = if (goNext) nextChapterUrl != null || (dlZip2View && zipPosition + 1 < (zipList?.size ?: 0))
+                    else previousChapterUrl != null || (dlZip2View && zipPosition > 0)
+                    (holder.itemView as android.widget.Button).apply {
+                        text = if (available) { if (goNext) "下一章節" else "上一章節" } else { if (goNext) "已到結尾" else "已到開頭" }
+                        isEnabled = available
+                        setOnClickListener { PagesManager(WeakReference(this@ViewMangaActivity)).jumpChapter(goNext) }
+                    }
+                    return
+                }
+                val imagePosition = position - 1
                 holder.itemView.findViewById<ScaleImageView>(R.id.onei)?.let { oneImage ->
-                    if (dlZip2View) getImgBitmap(position)?.let { oneImage.setImageBitmap(it) }
+                    if (dlZip2View) getImgBitmap(imagePosition)?.let { oneImage.setImageBitmap(it) }
                     else {
-                        loadOnlineImage(imgUrls[position], oneImage)
+                        loadOnlineImage(imgUrls[imagePosition], oneImage)
                         for (offset in 1..preload.coerceIn(1, 10)) {
-                            val next = position + offset
+                            val next = imagePosition + offset
                             if (next < imgUrls.size) Glide.with(this@ViewMangaActivity)
                                 .load(toolsBox.resolution.wrap(imgUrls[next], quality))
                                 .diskCacheStrategy(if (useCache) DiskCacheStrategy.AUTOMATIC else DiskCacheStrategy.NONE)
@@ -455,7 +463,13 @@ class ViewMangaActivity : ToolsBoxActivity() {
                 }
             }
 
-            override fun getItemCount(): Int = count
+            override fun getItemViewType(position: Int): Int = when (position) {
+                0 -> header
+                count + 1 -> footer
+                else -> image
+            }
+
+            override fun getItemCount(): Int = count + 2
         }
     }
 
@@ -563,7 +577,7 @@ class ViewMangaActivity : ToolsBoxActivity() {
                 va?.get()?.apply {
                     count = imgUrls.size
                     if (r2l) onlineAdapter?.notifyDataSetChanged()
-                    else onlineAdapter?.notifyItemRangeInserted(start, urls.size)
+                    else onlineAdapter?.notifyItemRangeInserted(start + 1, urls.size)
                     updateSeekText()
                     if (finished) Log.d("MyVM", "All streamed images loaded: $count")
                 }
