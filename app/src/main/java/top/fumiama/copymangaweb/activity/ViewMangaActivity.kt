@@ -3,6 +3,7 @@ package top.fumiama.copymangaweb.activity
 import android.animation.ObjectAnimator
 import android.annotation.SuppressLint
 import android.app.Dialog
+import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.os.Build
@@ -244,7 +245,7 @@ class ViewMangaActivity : ToolsBoxActivity() {
             mBinding.vone.root.apply { post { visibility = View.INVISIBLE } }
             mBinding.vcontinuous.apply { post {
                 visibility = View.VISIBLE
-                setPadding(0, 0, 0, 0)
+                setPadding(0, 0, 0, toolsBox.dp2px(56) ?: 56)
                 clipToPadding = true
                 layoutManager = LinearLayoutManager(this@ViewMangaActivity)
                 setItemViewCacheSize(preload.coerceIn(1, 10))
@@ -290,8 +291,8 @@ class ViewMangaActivity : ToolsBoxActivity() {
             setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
                 override fun onProgressChanged(p0: SeekBar?, p1: Int, isHuman: Boolean) {
                     if (isHuman) {
-                        if (p1 >= (pageNum + 1) * 100 / size) scrollForward()
-                        else if (p1 < (pageNum - 1) * 100 / size) scrollBack()
+                        val target = ((p1 * size) / 100).coerceIn(1, size.coerceAtLeast(1))
+                        if (target != pageNum) setPageNumber(target)
                     }
                 }
 
@@ -365,6 +366,27 @@ class ViewMangaActivity : ToolsBoxActivity() {
         pageNum++
     }
 
+    fun openChapterFromBoundary(goNext: Boolean) {
+        val chapterUrl = if (goNext) nextChapterUrl else previousChapterUrl
+        if (chapterUrl != null) {
+            if (!goNext) pn = -2
+            tt.canDo = false
+            MainActivity.wm?.get()?.mBinding?.w?.post { MainActivity.wm?.get()?.mBinding?.w?.loadUrl(chapterUrl) }
+            finish()
+            return
+        }
+        val newPosition = zipPosition + if (goNext) 1 else -1
+        if (dlZip2View && newPosition >= 0 && newPosition < (zipList?.size ?: 0)) {
+            if (!goNext) pn = -2
+            zipPosition = newPosition
+            titleText = zipList?.get(newPosition) ?: "null"
+            zipFile = File(cd, titleText)
+            tt.canDo = false
+            startActivity(Intent(this, ViewMangaActivity::class.java))
+            finish()
+        }
+    }
+
     @SuppressLint("SetTextI18n")
     private fun updateSeekText() {
         mBinding.oneinfo.inftxtprogress.apply { post { text = "$pageNum/$count" } }
@@ -425,6 +447,7 @@ class ViewMangaActivity : ToolsBoxActivity() {
                     val button = android.widget.Button(parent.context).apply {
                         layoutParams = RecyclerView.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
                         setPadding(0, 12, 0, 12)
+                        minHeight = (48 * resources.displayMetrics.density).toInt()
                     }
                     return ContinuousViewData(button)
                 }
@@ -440,9 +463,14 @@ class ViewMangaActivity : ToolsBoxActivity() {
                     val available = if (goNext) nextChapterUrl != null || (dlZip2View && zipPosition + 1 < (zipList?.size ?: 0))
                     else previousChapterUrl != null || (dlZip2View && zipPosition > 0)
                     (holder.itemView as android.widget.Button).apply {
+                        if (goNext) {
+                            minHeight = (48 * resources.displayMetrics.density).toInt()
+                            setPadding(0, 12, 0, 12)
+                            elevation = (8 * resources.displayMetrics.density)
+                        }
                         text = if (available) { if (goNext) "下一章節" else "上一章節" } else { if (goNext) "已到結尾" else "已到開頭" }
                         isEnabled = available
-                        setOnClickListener { PagesManager(WeakReference(this@ViewMangaActivity)).jumpChapter(goNext) }
+                        setOnClickListener { this@ViewMangaActivity.openChapterFromBoundary(goNext) }
                     }
                     return
                 }
