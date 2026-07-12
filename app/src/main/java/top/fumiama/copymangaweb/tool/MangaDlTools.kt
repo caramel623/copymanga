@@ -31,7 +31,7 @@ class MangaDlTools(activity: DlActivity) {
     }
 
     fun getImgsCountByHash(hash: String): Int?{
-        return imgUrlsList?.get(p[hash].toInt())?.size
+        return p[hash].toIntOrNull()?.let { imgUrlsList?.getOrNull(it)?.size }
     }
 
     fun allocateChapterUrls(count: Int){
@@ -39,23 +39,33 @@ class MangaDlTools(activity: DlActivity) {
         chaptersCount = 0
     }
 
-    fun dlChapterUrl(url: String){
+    fun dlChapterUrl(url: String): Boolean {
         val acquired = try { sem.tryAcquire(30, TimeUnit.SECONDS) } catch (_: InterruptedException) { false }
         if (!acquired) {
             val index = chaptersCount++
             p[url.substringAfterLast("/")] = index.toString()
             imgUrlsList?.set(index, emptyArray())
-            onDownloadedListener?.handleMessage(false)
-            return
+            return false
         }
         da.get()?.apply {
             p[url.substringAfterLast("/")] = (chaptersCount++).toString()
             runOnUiThread { mBinding.dwh.apply { post { loadUrl(url) } } }
         }
+        return da.get() != null
+    }
+
+    fun waitChapterUrlsReady(): Boolean {
+        return try {
+            if (sem.tryAcquire(5, TimeUnit.MINUTES)) {
+                sem.release()
+                true
+            } else false
+        } catch (_: InterruptedException) { false }
     }
 
     fun setChapterImages(hash: String, imgUrls: Array<String>){
-        imgUrlsList?.set(p[hash].toInt(), imgUrls.filter { it.startsWith("http://") || it.startsWith("https://") }.toTypedArray())
+        val index = p[hash].toIntOrNull() ?: run { sem.release(); return }
+        imgUrlsList?.getOrNull(index)?.let { imgUrlsList?.set(index, imgUrls.filter { it.startsWith("http://") || it.startsWith("https://") }.toTypedArray()) }
         sem.release()
     }
 
@@ -115,6 +125,7 @@ class MangaDlTools(activity: DlActivity) {
             val zip = zipOutput?.let { ZipOutputStream(CheckedOutputStream(it, CRC32())).apply { setLevel(9) } }
             var succeed = true
             for (i in images.indices) {
+                val fileName = "%03d.JPG".format(i + 1)
                 var tryTimes = 3
                 var s = false
                 while (!s && tryTimes-- > 0){
@@ -126,18 +137,18 @@ class MangaDlTools(activity: DlActivity) {
                         candidates.any { u ->
                             dl.getHttpContent(u, SiteConfig.get(activity), activity.getString(R.string.pc_ua), cookie)?.let { data ->
                             if (zip != null) {
-                                zip.putNextEntry(ZipEntry("$i.webp"))
+                                zip.putNextEntry(ZipEntry(fileName))
                                 zip.write(data)
                                 zip.closeEntry()
                             } else if (imageFolder != null) {
-                                imageFolder.findFile("$i.webp")?.delete()
-                                val image = imageFolder.createFile("image/webp", "$i.webp")
+                                imageFolder.findFile(fileName)?.delete()
+                                val image = imageFolder.createFile("image/jpeg", fileName)
                                 val out = image?.uri?.let { activity.contentResolver.openOutputStream(it) }
                                 if (out == null) return@let false
                                 out.use { it.write(data) }
                             } else {
                                 val folder = defaultImageFolder ?: return@let false
-                                File(folder, "$i.webp").writeBytes(data)
+                                File(folder, fileName).writeBytes(data)
                             }
                             true
                             } ?: false
@@ -162,10 +173,10 @@ class MangaDlTools(activity: DlActivity) {
                 if (exit) break
                 if (i < images.lastIndex) {
                     val delay = when {
-                        images.size <= 25 -> 500L
-                        images.size <= 50 -> listOf(500L, 1_000L, 1_500L).random()
-                        (i + 1) % 10 == 0 -> Random.nextLong(3_000L, 18_001L)
-                        else -> 0L
+                        images.size <= 25 -> 0L
+                        images.size <= 50 -> 500L
+                        images.size >= 100 && (i + 1) % 50 == 0 -> Random.nextLong(3_000L, 18_001L)
+                        else -> listOf(500L, 1_000L).random()
                     }
                     var remaining = delay
                     while (remaining > 0 && !exit) {

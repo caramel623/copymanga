@@ -19,6 +19,7 @@ import top.fumiama.copymangaweb.activity.template.ToolsBoxActivity
 import top.fumiama.copymangaweb.data.ComicStructure
 import top.fumiama.copymangaweb.databinding.ActivityDlBinding
 import top.fumiama.copymangaweb.handler.DlHandler
+import top.fumiama.copymangaweb.tool.InsetsTools
 import top.fumiama.copymangaweb.tool.MangaDlTools
 import top.fumiama.copymangaweb.tool.MangaDlTools.Companion.wmdlt
 import top.fumiama.copymangaweb.view.ChapterToggleButton
@@ -51,6 +52,7 @@ class DlActivity : ToolsBoxActivity() {
         super.onCreate(savedInstanceState)
         mBinding = ActivityDlBinding.inflate(layoutInflater)
         setContentView(mBinding.root)
+        InsetsTools.applySafeContentInsets(this, mBinding.root)
         wm?.get()?.saveUrlsOnly = true
         mangaDlTools = MangaDlTools(this)
         mBinding.dwh.apply { post {
@@ -58,6 +60,8 @@ class DlActivity : ToolsBoxActivity() {
             webChromeClient = WebChromeClient()
             setWebViewClient("h.js")
             loadJSInterface(JSHidden())
+            // 網頁僅用於背景掃描章節圖片網址，不顯示實際網站內容。
+            visibility = View.INVISIBLE
         } }
         handler.sendEmptyMessage(-2)        //setLayouts
     }
@@ -91,17 +95,30 @@ class DlActivity : ToolsBoxActivity() {
         ).start()
     }
 
-    private fun fillChapters() {
+    private fun fillChapters(): Boolean {
         mangaDlTools.allocateChapterUrls(checkedChapter)
+        var ok = true
         for (i in tbtnlist) {
-            if (i.isChecked) mangaDlTools.dlChapterUrl(i.url.toString())
+            if (i.isChecked && !mangaDlTools.dlChapterUrl(i.url.toString())) ok = false
         }
+        return ok && mangaDlTools.waitChapterUrlsReady()
     }
 
     private fun dlThread(dlMethod: (i: ChapterToggleButton) -> Unit) {
         sleep(10000)
-        for (i in tbtnlist) {
+        val selected = tbtnlist.filter { it.isChecked }
+        for ((selectedIndex, i) in selected.withIndex()) {
             if (i.isChecked) dlMethod(i)
+            val pageCount = i.hash?.let { mangaDlTools.getImgsCountByHash(it) } ?: 0
+            if (pageCount > 100 && selectedIndex < selected.lastIndex && canDl) {
+                var remaining = 30_000L
+                while (remaining > 0 && canDl) {
+                    mBinding.dldlbar.textView.post { mBinding.dldlbar.textView.text = "章節間隔等待：${((remaining + 999) / 1000)} 秒" }
+                    val chunk = minOf(250L, remaining)
+                    sleep(chunk)
+                    remaining -= chunk
+                }
+            }
             if (!canDl) {
                 checkedChapter -= dldChapter
                 dldChapter = 0
@@ -130,13 +147,14 @@ class DlActivity : ToolsBoxActivity() {
         }) } }
         mBinding.dllazys.onScrollListener = object : LazyScrollView.OnScrollListener {
             override fun onBottom() {}
-            override fun onScroll() { if (mBinding.dldlbar.csdwn.translationX == 0f) hideDlCard() }
+            override fun onScroll() {}
             override fun onTop() {}
         }
         mBinding.dldlbar.cdwn.let { it.post {
+            mBinding.dldlbar.csdwn.translationX = 0f
             it.setOnClickListener {
-                if (mBinding.dldlbar.csdwn.translationX != 0f) showDlCard()
-                else if (checkedChapter == 0) hideDlCard()
+                if (checkedChapter == 0)
+                    return@setOnClickListener
                 else {
                     mBinding.dldlbar.pdwn.progress = 0
                     if (canDl || checkedChapter == 0) canDl = false
@@ -146,8 +164,7 @@ class DlActivity : ToolsBoxActivity() {
                         handler.sendEmptyMessage(9)     //set dl card color to red
                         Toast.makeText(this@DlActivity, "请耐心等待加载...", Toast.LENGTH_SHORT).show()
                         Thread {
-                            fillChapters()
-                            dlThread { downloadChapterPages(it) }
+                            if (fillChapters()) dlThread { downloadChapterPages(it) }
                         }.start()
                     }
                 }
@@ -345,13 +362,15 @@ class DlActivity : ToolsBoxActivity() {
 
     @SuppressLint("SetTextI18n")
     fun updateProgressBar() {
-        mBinding.dldlbar.tdwn.apply { post {
-            text = "${++dldChapter}/$checkedChapter"
+        mBinding.dldlbar.textView.apply { post {
+            text = "當前 ${++dldChapter} 章，本次下載 ${checkedChapter} 章"
         } }
+        mBinding.dldlbar.tdwn.apply { post { text = "目前頁面 0/0" } }
         setProgress2(dldChapter * 100 / checkedChapter, 233)
     }
 
     fun updateProgressBar(pageNow: Int, size: Int) {
+        mBinding.dldlbar.tdwn.apply { post { text = "目前頁面 $pageNow/$size" } }
         val delta = 100 / checkedChapter
         val start = dldChapter * delta
         val now = pageNow * delta / size

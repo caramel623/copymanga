@@ -175,7 +175,11 @@ class ViewMangaActivity : ToolsBoxActivity() {
         if (position >= count || position < 0) return null
         else {
             val zip = ZipFile(mangaZip)
-            return BitmapFactory.decodeStream(zip.getInputStream(zip.getEntry("${position}.webp")))
+            val entry = zip.getEntry("%03d.JPG".format(position + 1))
+                ?: zip.getEntry("${position}.webp")
+                ?: zip.getEntry("${position}.JPG")
+                ?: return null
+            return BitmapFactory.decodeStream(zip.getInputStream(entry))
         }
     }
 

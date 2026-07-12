@@ -20,6 +20,7 @@ import top.fumiama.copymangaweb.activity.template.ToolsBoxActivity
 import top.fumiama.copymangaweb.activity.viewmodel.MainViewModel
 import top.fumiama.copymangaweb.databinding.ActivityMainBinding
 import top.fumiama.copymangaweb.handler.MainHandler
+import top.fumiama.copymangaweb.tool.InsetsTools
 import top.fumiama.copymangaweb.tool.MangaDlTools.Companion.wmdlt
 import top.fumiama.copymangaweb.tool.SetDraggable
 import top.fumiama.copymangaweb.tool.Updater
@@ -43,6 +44,7 @@ class MainActivity: ToolsBoxActivity() {
         mBinding.mainViewModel = mViewModel
         mBinding.lifecycleOwner = this
         setContentView(mBinding.root)
+        InsetsTools.applySafeContentInsets(this, mBinding.root)
 
         wm = WeakReference(this)
         mh = MainHandler(Looper.myLooper()!!)
