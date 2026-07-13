@@ -36,6 +36,7 @@ class MainActivity: ToolsBoxActivity() {
     lateinit var mBinding: ActivityMainBinding
     private val mViewModel = MainViewModel()
     private var currentSiteUrl = ""
+    var lastComicSelectionUrl: String? = null
 
     @SuppressLint("JavascriptInterface")
     override fun onCreate(savedInstanceState: Bundle?) {

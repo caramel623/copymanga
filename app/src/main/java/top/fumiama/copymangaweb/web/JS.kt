@@ -81,6 +81,9 @@ class JS {
             else -> ""
         }
         Log.d("MyJS", "Load comic: $u")
+        if (u.contains("/chapter/")) {
+            wm?.get()?.lastComicSelectionUrl = u.substringBefore("/chapter/")
+        }
         wm?.get()?.loadHiddenUrl(u)
     }
     @JavascriptInterface
