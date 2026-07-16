@@ -164,7 +164,12 @@ class DlActivity : ToolsBoxActivity() {
                         handler.sendEmptyMessage(9)     //set dl card color to red
                         Toast.makeText(this@DlActivity, "请耐心等待加载...", Toast.LENGTH_SHORT).show()
                         Thread {
-                            if (fillChapters()) dlThread { downloadChapterPages(it) }
+                            if (fillChapters()) {
+                                val firstChapter = tbtnlist.firstOrNull { it.isChecked }
+                                val imageCount = firstChapter?.hash?.let { mangaDlTools.getImgsCountByHash(it) } ?: 0
+                                runOnUiThread { updateProgressBar(0, imageCount) }
+                                dlThread { downloadChapterPages(it) }
+                            }
                         }.start()
                     }
                 }
@@ -370,7 +375,8 @@ class DlActivity : ToolsBoxActivity() {
     }
 
     fun updateProgressBar(pageNow: Int, size: Int) {
-        mBinding.dldlbar.tdwn.apply { post { text = "目前頁面 $pageNow/$size" } }
+        mBinding.dldlbar.tdwn.apply { post { text = "圖片下載 $pageNow/$size" } }
+        if (size <= 0) return
         val delta = 100 / checkedChapter
         val start = dldChapter * delta
         val now = pageNow * delta / size

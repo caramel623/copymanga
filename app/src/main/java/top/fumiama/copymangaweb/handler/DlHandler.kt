@@ -86,11 +86,6 @@ class DlHandler(activity: DlActivity, looper: Looper) : Handler(looper) {
                 d?.updateProgressBar(msg.arg2, size)
                 if (!(msg.obj as Boolean)) {
                     Toast.makeText(d, "下载${d?.tbtnlist?.get(msg.arg1)?.textOn}的第${msg.arg2}页失败", Toast.LENGTH_SHORT).show()
-                }else{
-                    val progressTxt = d?.mBinding?.dldlbar?.tdwn?.text.toString()
-                    d?.mBinding?.dldlbar?.tdwn?.apply { post {
-                        text = "${progressTxt.substringBefore(' ')} 的 ${msg.arg2}/${size} 页"
-                    } }
                 }
             }
             6 -> d?.mBinding?.dldlbar?.tdwn?.apply { post { text = "${d?.dldChapter}/${d?.checkedChapter}" } }

@@ -15,11 +15,11 @@ if (typeof (loaded) == "undefined") {
         let prevHeight = document.body.scrollHeight;
         let lastTime = 0;
         let ticking = false;
-        let batchStart = 0;
         let sentImages = 0;
         let readerStarted = false;
+        let finished = false;
+        let bottomReachedAt = 0;
         const backgroundDownload = GM.isDownloadMode();
-        const batchSize = backgroundDownload ? Math.min(5, Math.max(1, GM.getDownloadBatchSize())) : 999999;
         const effectiveSpeed = backgroundDownload ? Math.min(speed, 80) : speed;
         const effectiveInterval = backgroundDownload ? Math.max(interval, 120) : interval;
         function chapterHeader() {
@@ -46,10 +46,29 @@ if (typeof (loaded) == "undefined") {
             sentImages += amount;
         }
         function requestTick() {
-            if (!ticking) {
+            if (!finished && !ticking) {
                 ticking = true;
                 requestAnimationFrame(step);
             }
+        }
+        function collectChapterUrls() {
+            var content = document.getElementsByClassName("container-fluid comicContent")[0];
+            if (!content) return Array();
+            var images = content.getElementsByTagName("li");
+            var urls = Array();
+            for (var i = 0; i < images.length; i++) {
+                var img = images[i].getElementsByTagName("img")[0];
+                if (img && img.dataset && img.dataset.src) urls.push(img.dataset.src);
+            }
+            return urls;
+        }
+        function finishChapter(urls) {
+            if (finished || urls.length <= 0) return false;
+            finished = true;
+            GM.setLoadingDialog(false);
+            if (backgroundDownload) GM.loadChapter(chapterHeader() + "\n" + urls.join("\n"));
+            else emitReaderChunk(true);
+            return true;
         }
         function step(timestamp) {
             if (!lastTime) lastTime = timestamp;
@@ -57,31 +76,24 @@ if (typeof (loaded) == "undefined") {
             if (elapsed >= effectiveInterval) {
                 const index = parseInt(document.getElementsByClassName("comicIndex")[0].innerText) || 0;
                 const count = parseInt(document.getElementsByClassName("comicCount")[0].innerText) || 0;
-                GM.setLoadingDialogProgress((backgroundDownload ? "背景載入 " : "") + index, count.toString());
+                const chapterUrls = collectChapterUrls();
+                const progress = backgroundDownload ? Math.max(index, chapterUrls.length) : index;
+                GM.setLoadingDialogProgress((backgroundDownload ? "背景載入 " : "") + progress, count.toString());
                 emitReaderChunk(false);
-                if (backgroundDownload && batchStart == 0) batchStart = index;
-                if (backgroundDownload && index - batchStart >= batchSize) {
-                    batchStart = index;
-                    ticking = false;
-                    const wait = 1000 + Math.floor(Math.random() * 19001);
-                    setTimeout(requestTick, wait);
-                    return;
-                }
+                /* The visible page counter can remain at 22/23 even when the
+                   final image and all URLs are ready. Complete from the collected
+                   URLs instead of waiting for comicIndex to reach comicCount. */
+                if (backgroundDownload && count > 0 && chapterUrls.length >= count && finishChapter(chapterUrls)) return;
                 window.scrollBy(0, effectiveSpeed);
                 lastTime = timestamp;
                 const currentHeight = document.body.scrollHeight;
                 if (Math.round(window.innerHeight+window.scrollY+0.5) >= currentHeight) { /*避免小数不符无法触发*/
-                    if (currentHeight === prevHeight) {
-                        var images = document.getElementsByClassName("container-fluid comicContent")[0].getElementsByTagName("li");
-                        var result = chapterHeader();
-                        for(var i = 0; i < images.length; i++) result += "\n" + images[i].getElementsByTagName("img")[0].dataset.src;
-                        GM.setLoadingDialog(false);
-                        if (backgroundDownload) GM.loadChapter(result);
-                        else emitReaderChunk(true);
-                        return;
+                    if (!bottomReachedAt) bottomReachedAt = Date.now();
+                    if (currentHeight === prevHeight && (!backgroundDownload || Date.now() - bottomReachedAt >= 2000)) {
+                        if (finishChapter(chapterUrls)) return;
                     }
                     prevHeight = currentHeight;
-                }
+                } else bottomReachedAt = 0;
             }
             ticking = false;
             requestTick();

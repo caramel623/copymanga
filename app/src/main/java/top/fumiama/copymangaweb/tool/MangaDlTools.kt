@@ -13,6 +13,7 @@ import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
 import kotlin.random.Random
 import android.net.Uri
+import android.util.Log
 import android.webkit.CookieManager
 import androidx.documentfile.provider.DocumentFile
 import java.io.OutputStream
@@ -64,8 +65,16 @@ class MangaDlTools(activity: DlActivity) {
     }
 
     fun setChapterImages(hash: String, imgUrls: Array<String>){
-        val index = p[hash].toIntOrNull() ?: run { sem.release(); return }
-        imgUrlsList?.getOrNull(index)?.let { imgUrlsList?.set(index, imgUrls.filter { it.startsWith("http://") || it.startsWith("https://") }.toTypedArray()) }
+        val index = p[hash].toIntOrNull()
+        val chapters = imgUrlsList
+        if (index == null || chapters == null || index !in chapters.indices) {
+            Log.e("Mydl", "Cannot store chapter URLs: hash=$hash, index=$index")
+            sem.release()
+            return
+        }
+        val validUrls = imgUrls.filter { it.startsWith("http://") || it.startsWith("https://") }.toTypedArray()
+        chapters[index] = validUrls
+        Log.d("Mydl", "Stored ${validUrls.size} image URLs for chapter $hash at index $index")
         sem.release()
     }
 
@@ -79,7 +88,16 @@ class MangaDlTools(activity: DlActivity) {
     }
 
     fun dlChapterAndPackIntoZip(zipf: File, hash: String){
-        imgUrlsList?.get(p[hash].toInt())?.let { images ->
+        val chapterIndex = p[hash].toIntOrNull()
+        val chapterImages = chapterIndex?.let { imgUrlsList?.getOrNull(it) }
+        if (chapterImages == null) {
+            Log.e("Mydl", "Chapter image URLs are missing: hash=$hash, index=$chapterIndex")
+            onDownloadedListener?.handleMessage(false)
+            return
+        }
+        Log.d("Mydl", "Start downloading ${chapterImages.size} images for chapter $hash")
+        d?.runOnUiThread { d?.updateProgressBar(0, chapterImages.size) }
+        chapterImages.let { images ->
             if (images.isEmpty()) {
                 onDownloadedListener?.handleMessage(false)
                 return@let
