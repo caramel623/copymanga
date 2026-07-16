@@ -36,7 +36,19 @@ class MainActivity: ToolsBoxActivity() {
     lateinit var mBinding: ActivityMainBinding
     private val mViewModel = MainViewModel()
     private var currentSiteUrl = ""
-    var lastComicSelectionUrl: String? = null
+    // The host may be changed in Settings while reading, so retain only the
+    // comic page path and resolve it against the current configured entry.
+    var lastComicSelectionPath: String? = null
+
+    fun lastComicSelectionUrl(): String? = lastComicSelectionPath?.let { path ->
+        SiteConfig.get(this).trimEnd('/') + if (path.startsWith('/')) path else "/$path"
+    }
+
+    fun rememberChapterSelectionUrl(chapterUrl: String) {
+        val path = Uri.parse(chapterUrl).encodedPath.orEmpty()
+        val selection = path.substringBefore("/chapter/")
+        if (selection.isNotBlank() && selection != path) lastComicSelectionPath = selection
+    }
 
     @SuppressLint("JavascriptInterface")
     override fun onCreate(savedInstanceState: Bundle?) {

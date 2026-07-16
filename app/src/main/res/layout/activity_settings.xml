@@ -15,7 +15,7 @@
             android:id="@+id/siteUrl"
             android:layout_width="match_parent"
             android:layout_height="48dp"
-            android:hint="https://2025copy.com/"
+            android:hint="https://www.mangacopy.com/"
             android:inputType="textUri"
             android:singleLine="true" />
         <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="20dp" android:text="閱讀設定" android:textSize="18sp" android:textStyle="bold" />

@@ -5,7 +5,7 @@ import android.net.Uri
 import java.io.File
 
 object SiteConfig {
-    const val DEFAULT_URL = "https://2025copy.com/"
+    const val DEFAULT_URL = "https://www.mangacopy.com/"
 
     fun get(context: Context): String {
         val saved = PropertiesTools(File("${context.filesDir}/settings.properties"))["siteUrl"]

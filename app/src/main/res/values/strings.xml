@@ -1,8 +1,8 @@
 <resources>
     <string name="app_name">拷貝WEB</string>
-    <string name="web_home">https://2025copy.com/</string>
-    <string name="web_home_www">https://2025copy.com/</string>
-    <string name="web_comic_detail_pc">https://2025copy.com/comic</string>
+    <string name="web_home">https://www.mangacopy.com/</string>
+    <string name="web_home_www">https://www.mangacopy.com/</string>
+    <string name="web_comic_detail_pc">https://www.mangacopy.com/comic</string>
 
     <string name="pc_ua">Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/86.0.4240.75 Safari/537.36 Edg/86.0.622.38</string>
 

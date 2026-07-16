@@ -91,6 +91,7 @@ if (typeof (loaded) == "undefined") {
     function modify() {
         var url = location.href;
         if(url.indexOf("/chapter/") > 0){
+            GM.rememberChapterSelectionUrl(url);
             GM.setLoadingDialog(true);
             smoothLoadChapter(GM.getChapterLoadSpeed(), 16);
         } else {

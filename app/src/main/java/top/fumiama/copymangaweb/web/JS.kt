@@ -82,7 +82,8 @@ class JS {
         }
         Log.d("MyJS", "Load comic: $u")
         if (u.contains("/chapter/")) {
-            wm?.get()?.lastComicSelectionUrl = u.substringBefore("/chapter/")
+            wm?.get()?.lastComicSelectionPath = Uri.parse(u.substringBefore("/chapter/"))
+                .encodedPath.orEmpty()
         }
         wm?.get()?.loadHiddenUrl(u)
     }

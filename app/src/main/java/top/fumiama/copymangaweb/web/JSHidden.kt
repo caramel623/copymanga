@@ -26,6 +26,10 @@ class JSHidden {
         return PropertiesTools(File("${activity.filesDir}/settings.properties"))["loadSpeed"].toIntOrNull() ?: 320
     }
     @JavascriptInterface
+    fun rememberChapterSelectionUrl(chapterUrl: String) {
+        wm?.get()?.rememberChapterSelectionUrl(chapterUrl)
+    }
+    @JavascriptInterface
     fun loadChapter(listString: String){
         wm?.get()?.callViewManga(listString)
     }

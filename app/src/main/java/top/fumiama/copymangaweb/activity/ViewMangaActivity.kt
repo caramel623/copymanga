@@ -27,6 +27,7 @@ import top.fumiama.copymangaweb.R
 import top.fumiama.copymangaweb.activity.MainActivity.Companion.wm
 import top.fumiama.copymangaweb.activity.template.ToolsBoxActivity
 import top.fumiama.copymangaweb.databinding.ActivityViewmangaBinding
+import top.fumiama.copymangaweb.handler.MainHandler
 import top.fumiama.copymangaweb.handler.TimeThread
 import top.fumiama.copymangaweb.tool.PropertiesTools
 import top.fumiama.copymangaweb.tool.PagesManager
@@ -405,7 +406,12 @@ class ViewMangaActivity : ToolsBoxActivity() {
         tt.canDo = false
         wm?.get()?.let { main ->
             main.mBinding.w.stopLoading()
-            main.lastComicSelectionUrl?.let { main.mBinding.w.loadUrl(it) }
+            // Reader startup can leave the hidden scanner running while the
+            // remaining image URLs are collected.  It must not remain visible
+            // after returning to the chapter selection page.
+            main.mBinding.wh.stopLoading()
+            MainActivity.mh?.sendEmptyMessage(MainHandler.HIDE_LOADING_DIALOG)
+            main.lastComicSelectionUrl()?.let { main.mBinding.w.loadUrl(it) }
         }
         finish()
     }
