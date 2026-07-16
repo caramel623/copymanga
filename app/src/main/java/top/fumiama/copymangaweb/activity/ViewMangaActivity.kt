@@ -411,7 +411,7 @@ class ViewMangaActivity : ToolsBoxActivity() {
             // after returning to the chapter selection page.
             main.mBinding.wh.stopLoading()
             MainActivity.mh?.sendEmptyMessage(MainHandler.HIDE_LOADING_DIALOG)
-            main.lastComicSelectionUrl()?.let { main.mBinding.w.loadUrl(it) }
+            main.returnToChapterSelection()
         }
         finish()
     }

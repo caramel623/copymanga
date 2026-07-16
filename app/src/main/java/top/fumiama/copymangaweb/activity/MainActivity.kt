@@ -50,6 +50,31 @@ class MainActivity: ToolsBoxActivity() {
         if (selection.isNotBlank() && selection != path) lastComicSelectionPath = selection
     }
 
+    fun returnToChapterSelection() {
+        val selectionPath = lastComicSelectionPath
+        val comicSlug = selectionPath?.substringAfterLast('/')?.takeIf { it.isNotBlank() }
+        mBinding.w.apply { post {
+            stopLoading()
+            val history = copyBackForwardList()
+            val currentIndex = history.currentIndex
+            var targetIndex = -1
+            if (comicSlug != null) {
+                for (i in currentIndex - 1 downTo 0) {
+                    val path = Uri.parse(history.getItemAtIndex(i).url).encodedPath.orEmpty().trimEnd('/')
+                    val isDesktopSelection = path == selectionPath?.trimEnd('/')
+                    val isMobileSelection = path.substringAfter("/details/comic/", "")
+                        .substringBefore('/') == comicSlug
+                    if (isDesktopSelection || isMobileSelection) {
+                        targetIndex = i
+                        break
+                    }
+                }
+            }
+            if (targetIndex >= 0) goBackOrForward(targetIndex - currentIndex)
+            else lastComicSelectionUrl()?.let { loadUrl(it) }
+        } }
+    }
+
     @SuppressLint("JavascriptInterface")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
