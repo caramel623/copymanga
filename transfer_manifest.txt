@@ -1,0 +1,51 @@
+拷貝WEB Windows 移轉清單
+更新日期：2026-07-17
+
+[已由 GitHub 保存]
+- agent/beta1 分支中的 Android/Kotlin/JavaScript 原始碼
+- Gradle Wrapper（gradlew、gradlew.bat、gradle/wrapper/gradle-wrapper.jar）
+- Gradle 與 Android 依賴版本設定
+- AndroidManifest、資源、圖示與必要素材
+- README、LICENSE
+- Git 標籤與 GitHub Releases（包含 V1.6.1 APK）
+- 本次新增文件與範例設定在提交後會由 GitHub 保存：
+  .gitignore
+  README.md
+  TRANSFER_GUIDE.md
+  PROJECT_STATUS.md
+  transfer_manifest.txt
+  local.properties.example
+  app/signing.properties.example
+
+[必須另外安全複製或重新建立]
+- local.properties：建議在新電腦依 local.properties.example 重新建立
+- C:\Users\<原使用者>\.android\debug.keystore：若要覆蓋現有 Debug APK，必須安全離線備份
+- 任何正式發行 keystore／JKS 與密碼：目前專案目錄中未發現
+- app/signing.properties：目前不存在；未來若建立，必須安全備份，不可進 Git
+- 手機上的下載漫畫、ZIP、指定下載資料夾：只有需要保留使用者資料時才另外複製
+- Android Studio、GitHub CLI 與 Git 登入：在新電腦重新設定，不要複製進儲存庫
+
+[不需要搬移，可在新電腦重建]
+- .gradle/（Gradle 快取）
+- .kotlin/（Kotlin 快取）
+- app/build/、build/（編譯輸出）
+- APK/AAB/APKS 建置輸出；正式 APK 已在 GitHub Release 保存
+- Android SDK 與 JDK 安裝目錄；建議在新電腦重新安裝相同主要版本
+- IDE workspace、caches、裝置選擇與其他 .idea 個人狀態
+- local.properties 中的舊電腦絕對 SDK 路徑
+
+[敏感檔案類型；不要記錄或輸出內容]
+- *.keystore、*.jks、*.p12、*.pfx、*.pem、*.key
+- app/signing.properties
+- .env、API 金鑰、Token、Cookie、密碼及 GitHub 認證
+- C:\Users\<使用者>\.android\debug.keystore
+- 手機應用程式私有資料與加密登入資料
+- 使用者下載的漫畫、ZIP 及其他私人資料
+
+[目前盤點結果]
+- 未發現已追蹤的真實密碼、API 金鑰、Cookie、Token 或私人金鑰
+- 未發現專案內的 signing.properties 或 release keystore
+- 唯一本機絕對路徑位於已忽略的 local.properties（Android SDK 路徑）
+- Python 與 Node.js 依賴：不適用
+- 本機單元測試與 Debug 建置成功；手機未連線，儀器測試未執行
+- Release 建置在 4 分鐘時限內未完成且未產生 APK，仍需在新電腦重新驗證

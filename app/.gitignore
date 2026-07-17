@@ -2,3 +2,5 @@
 /release
 /debug
 /signing.properties
+/*.keystore
+/*.jks

@@ -1,0 +1,7 @@
+# Copy to app/signing.properties only when an existing private signing key is
+# available. Never commit the real file or the key itself.
+# STORE_FILE may be absolute, or relative to the app directory.
+STORE_FILE=C\:\\secure\\path\\copymanga-debug-or-release.jks
+STORE_PASSWORD=CHANGE_ME
+KEY_ALIAS=CHANGE_ME
+KEY_PASSWORD=CHANGE_ME
