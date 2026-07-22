@@ -73,6 +73,11 @@ class DlActivity : ToolsBoxActivity() {
         super.onDestroy()
     }
 
+    override fun onResume() {
+        super.onResume()
+        if (::mangaDlTools.isInitialized && tbtnlist.isNotEmpty()) resumePendingDownloads()
+    }
+
     private fun showDlCard() {
         ObjectAnimator.ofFloat(
             mBinding.dldlbar.csdwn,
@@ -125,10 +130,8 @@ class DlActivity : ToolsBoxActivity() {
                 break
             }
         }
-        if (canDl) {
-            haveDlStarted = false
-            canDl = false
-        }
+        haveDlStarted = false
+        if (canDl) canDl = false
         handler.sendEmptyMessage(8)     //set dl card color to blue
     }
 
@@ -157,8 +160,13 @@ class DlActivity : ToolsBoxActivity() {
                     return@setOnClickListener
                 else {
                     mBinding.dldlbar.pdwn.progress = 0
-                    if (canDl || checkedChapter == 0) canDl = false
+                    if (canDl || checkedChapter == 0) {
+                        canDl = false
+                        haveDlStarted = false
+                        mangaDlTools.exit = true
+                    }
                     else {
+                        mangaDlTools.exit = false
                         haveDlStarted = true
                         canDl = true
                         handler.sendEmptyMessage(9)     //set dl card color to red
@@ -220,6 +228,35 @@ class DlActivity : ToolsBoxActivity() {
         val jsonFile = File(mangaHome, "info.bin")
         if(!mangaHome.exists()) mangaHome.mkdirs()
         if(!(jsonFile.exists() && intent.getBooleanExtra("callFromDlList", false))) json?.let { jsonFile.writeText(it) }
+        runOnUiThread { resumePendingDownloads() }
+    }
+
+    private fun resumePendingDownloads() {
+        if (haveDlStarted || canDl || tbtnlist.isEmpty()) return
+        val hashes = mangaDlTools.pendingHashes(comicName)
+        if (hashes.isEmpty()) return
+        val pending = tbtnlist.filter { it.hash in hashes }
+        if (pending.isEmpty()) return
+        pending.forEach { button ->
+            button.isChecked = true
+            button.setBackgroundResource(R.drawable.toggle_button)
+        }
+        checkedChapter = pending.size
+        dldChapter = 0
+        haveDlStarted = true
+        canDl = true
+        mangaDlTools.exit = false
+        handler.sendEmptyMessage(9)
+        Toast.makeText(this, "發現未完成下載，正在從暫存進度恢復", Toast.LENGTH_LONG).show()
+        Thread {
+            pending.forEach { chapter ->
+                if (!canDl) return@forEach
+                downloadChapterPages(chapter)
+            }
+            haveDlStarted = false
+            if (canDl) canDl = false
+            handler.sendEmptyMessage(8)
+        }.start()
     }
 
     private fun downloadChapterPages(i: ChapterToggleButton) {

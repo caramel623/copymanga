@@ -36,8 +36,6 @@ class SettingsActivity : Activity() {
         add(binding.loadSpeed, "loadSpeed", arrayOf("慢", "標準", "快"), arrayOf("160", "320", "640"), "320")
         add(binding.downloadBatchSize, "downloadBatchSize", arrayOf("1 張", "2 張", "3 張", "4 張", "5 張"), arrayOf("1", "2", "3", "4", "5"), "5")
         add(binding.compressZip, "compressZip", arrayOf("每個章節壓縮成單一 ZIP", "儲存為未壓縮圖片"), arrayOf("true", "false"), "true")
-        add(binding.bookrackSortField, "bookrackSortField", arrayOf("作品更新時間", "加入書架時間", "閱讀時間"), arrayOf("update", "added", "read"), "update")
-        add(binding.bookrackSortDirection, "bookrackSortDirection", arrayOf("由新到舊", "由舊到新"), arrayOf("desc", "asc"), "desc")
         updateDownloadLocationText()
         binding.selectDownloadLocation.setOnClickListener {
             startActivityForResult(Intent(Intent.ACTION_OPEN_DOCUMENT_TREE).addFlags(

@@ -24,6 +24,7 @@ class MangaDlTools(activity: DlActivity) {
     private val da = WeakReference(activity)
     private val d get() = da.get()
     private val p = PropertiesTools(File("${d?.filesDir}/chapters.hash"))
+    private val checkpointStore = DownloadCheckpointStore(File(activity.filesDir, "download-checkpoints"))
     private var imgUrlsList: Array<Array<String>?>? = null
     private var chaptersCount = 0
 
@@ -33,7 +34,11 @@ class MangaDlTools(activity: DlActivity) {
 
     fun getImgsCountByHash(hash: String): Int?{
         return p[hash].toIntOrNull()?.let { imgUrlsList?.getOrNull(it)?.size }
+            ?: checkpointStore.load(hash)?.imageUrls?.size
     }
+
+    fun pendingHashes(comicName: String): Set<String> =
+        checkpointStore.pendingForComic(comicName).map { it.hash }.toSet()
 
     fun allocateChapterUrls(count: Int){
         imgUrlsList = arrayOfNulls(count)
@@ -74,6 +79,7 @@ class MangaDlTools(activity: DlActivity) {
         }
         val validUrls = imgUrls.filter { it.startsWith("http://") || it.startsWith("https://") }.toTypedArray()
         chapters[index] = validUrls
+        if (validUrls.isNotEmpty()) checkpointStore.storeUrls(hash, DlActivity.comicName, validUrls)
         Log.d("Mydl", "Stored ${validUrls.size} image URLs for chapter $hash at index $index")
         sem.release()
     }
@@ -89,7 +95,9 @@ class MangaDlTools(activity: DlActivity) {
 
     fun dlChapterAndPackIntoZip(zipf: File, hash: String){
         val chapterIndex = p[hash].toIntOrNull()
+        val storedCheckpoint = checkpointStore.load(hash)
         val chapterImages = chapterIndex?.let { imgUrlsList?.getOrNull(it) }
+            ?: storedCheckpoint?.imageUrls
         if (chapterImages == null) {
             Log.e("Mydl", "Chapter image URLs are missing: hash=$hash, index=$chapterIndex")
             onDownloadedListener?.handleMessage(false)
@@ -109,44 +117,16 @@ class MangaDlTools(activity: DlActivity) {
             val compressZip = settings["compressZip"] != "false"
             val safeName = zipf.nameWithoutExtension.replace(Regex("[\\/:*?\"<>|]"), "_")
             val treeUri = settings["downloadTreeUri"].takeUnless { it == "null" }
-            val rootDocument = treeUri?.let { DocumentFile.fromTreeUri(activity, Uri.parse(it)) }
-            if (treeUri != null && (rootDocument == null || !rootDocument.canWrite())) {
-                onDownloadedListener?.handleMessage(false)
-                return@let
-            }
-            val defaultRoot = if (treeUri == null) File(activity.getExternalFilesDir(""), DlActivity.comicName).apply { mkdirs() } else null
-            val zipOutput: OutputStream? = if (compressZip) {
-                val customOutput = if (rootDocument != null && rootDocument.canWrite()) {
-                    rootDocument.findFile("$safeName.zip")?.delete()
-                    rootDocument.createFile("application/zip", "$safeName.zip")?.uri
-                        ?.let { activity.contentResolver.openOutputStream(it) }
-                } else null
-                customOutput ?: defaultRoot?.let {
-                    File(it, "$safeName.zip").apply { if (exists()) delete(); createNewFile() }.outputStream()
-                }
-            } else null
-            if (compressZip && zipOutput == null) {
-                onDownloadedListener?.handleMessage(false)
-                return@let
-            }
-            val imageFolder = if (!compressZip) {
-                if (rootDocument != null && rootDocument.canWrite()) {
-                    rootDocument.findFile(safeName)?.let { if (it.isDirectory) it else null }
-                        ?: rootDocument.createDirectory(safeName)
-                } else null
-            } else null
-            val defaultImageFolder = if (!compressZip && imageFolder == null) defaultRoot?.let { File(it, safeName).apply { mkdirs() } } else null
-            if (!compressZip && imageFolder == null && defaultImageFolder == null) {
-                onDownloadedListener?.handleMessage(false)
-                return@let
-            }
-            val zip = zipOutput?.let { ZipOutputStream(CheckedOutputStream(it, CRC32())).apply { setLevel(9) } }
-            var succeed = true
+            val checkpoint = checkpointStore.prepareDownload(
+                hash, DlActivity.comicName, safeName, images, compressZip, treeUri
+            )
             for (i in images.indices) {
-                val fileName = "%03d.JPG".format(i + 1)
-                var tryTimes = 3
-                var s = false
-                while (!s && tryTimes-- > 0){
+                val stagedImage = checkpointStore.stageImage(hash, i)
+                val alreadyCompleted = checkpoint.completed.getOrNull(i) == true &&
+                    stagedImage.isFile && stagedImage.length() > 0
+                var s = alreadyCompleted
+                var attempts = 0
+                while (!s && attempts++ < 3 && !exit){
                     s = try {
                         val candidates = linkedSetOf(
                             images[i],
@@ -154,21 +134,14 @@ class MangaDlTools(activity: DlActivity) {
                         )
                         candidates.any { u ->
                             dl.getHttpContent(u, SiteConfig.get(activity), activity.getString(R.string.pc_ua), cookie)?.let { data ->
-                            if (zip != null) {
-                                zip.putNextEntry(ZipEntry(fileName))
-                                zip.write(data)
-                                zip.closeEntry()
-                            } else if (imageFolder != null) {
-                                imageFolder.findFile(fileName)?.delete()
-                                val image = imageFolder.createFile("image/jpeg", fileName)
-                                val out = image?.uri?.let { activity.contentResolver.openOutputStream(it) }
-                                if (out == null) return@let false
-                                out.use { it.write(data) }
-                            } else {
-                                val folder = defaultImageFolder ?: return@let false
-                                File(folder, fileName).writeBytes(data)
-                            }
-                            true
+                                val part = File(stagedImage.parentFile, "${stagedImage.name}.part")
+                                part.writeBytes(data)
+                                if (stagedImage.exists()) stagedImage.delete()
+                                if (!part.renameTo(stagedImage)) {
+                                    part.copyTo(stagedImage, overwrite = true)
+                                    part.delete()
+                                }
+                                stagedImage.isFile && stagedImage.length() == data.size.toLong()
                             } ?: false
                         }
                     } catch (e: Exception) {
@@ -180,16 +153,10 @@ class MangaDlTools(activity: DlActivity) {
                         sleep(2000)
                     }
                 }
-                if(!s && tryTimes <= 0) succeed = false
+                if (s && checkpoint.completed.getOrNull(i) != true) checkpointStore.markCompleted(checkpoint, i)
                 onDownloadedListener?.handleMessage(s, i + 1)
-                try {
-                    zip?.flush()
-                } catch (e: Exception) {
-                    e.printStackTrace()
-                    succeed = false
-                }
                 if (exit) break
-                if (i < images.lastIndex) {
+                if (s && !alreadyCompleted && i < images.lastIndex) {
                     val delay = when {
                         images.size <= 25 -> 0L
                         images.size <= 50 -> 500L
@@ -207,15 +174,106 @@ class MangaDlTools(activity: DlActivity) {
                     }
                 }
             }
-            try {
-                zip?.finish()
-                zip?.close()
-                onDownloadedListener?.handleMessage(succeed)
-            } catch (e: Exception) {
-                e.printStackTrace()
+            if (exit) {
+                Log.d("Mydl", "Download paused and checkpoint retained: $hash")
+                return@let
+            }
+            if (!checkpoint.completed.all { it }) {
                 onDownloadedListener?.handleMessage(false)
+                return@let
+            }
+            val finalized = finalizeDownload(activity, zipf, checkpoint)
+            if (finalized) checkpointStore.clear(hash)
+            onDownloadedListener?.handleMessage(finalized)
+        }
+    }
+
+    private fun finalizeDownload(
+        activity: DlActivity,
+        zipf: File,
+        checkpoint: DownloadCheckpoint
+    ): Boolean = runCatching {
+        val images = checkpoint.imageUrls.indices.map { checkpointStore.stageImage(checkpoint.hash, it) }
+        if (images.any { !it.isFile || it.length() <= 0 }) return false
+        val rootDocument = checkpoint.treeUri?.let { DocumentFile.fromTreeUri(activity, Uri.parse(it)) }
+        if (checkpoint.treeUri != null && (rootDocument == null || !rootDocument.canWrite())) return false
+        if (checkpoint.compressZip) {
+            if (rootDocument == null) finalizeLocalZip(zipf, images)
+            else finalizeDocumentZip(activity, rootDocument, checkpoint.outputName, checkpoint.hash, images)
+        } else {
+            if (rootDocument == null) finalizeLocalFolder(zipf, checkpoint.outputName, images)
+            else finalizeDocumentFolder(activity, rootDocument, checkpoint.outputName, images)
+        }
+    }.getOrElse {
+        Log.e("Mydl", "Cannot finalize checkpoint ${checkpoint.hash}", it)
+        false
+    }
+
+    private fun writeZip(output: OutputStream, images: List<File>) {
+        ZipOutputStream(CheckedOutputStream(output, CRC32())).use { zip ->
+            zip.setLevel(9)
+            images.forEachIndexed { index, image ->
+                zip.putNextEntry(ZipEntry("%03d.JPG".format(index + 1)))
+                image.inputStream().use { it.copyTo(zip) }
+                zip.closeEntry()
             }
         }
+    }
+
+    private fun finalizeLocalZip(zipf: File, images: List<File>): Boolean {
+        zipf.parentFile?.mkdirs()
+        val part = File(zipf.parentFile, "${zipf.name}.part")
+        if (part.exists()) part.delete()
+        part.outputStream().use { writeZip(it, images) }
+        if (zipf.exists() && !zipf.delete()) return false
+        return part.renameTo(zipf)
+    }
+
+    private fun finalizeDocumentZip(
+        activity: DlActivity,
+        root: DocumentFile,
+        safeName: String,
+        hash: String,
+        images: List<File>
+    ): Boolean {
+        val internalPart = File(checkpointStore.stageDirectory(hash), "$safeName.zip.part")
+        if (internalPart.exists()) internalPart.delete()
+        internalPart.outputStream().use { writeZip(it, images) }
+        root.findFile("$safeName.zip.part")?.delete()
+        val documentPart = root.createFile("application/octet-stream", "$safeName.zip.part") ?: return false
+        val output = activity.contentResolver.openOutputStream(documentPart.uri) ?: return false
+        output.use { out -> internalPart.inputStream().use { it.copyTo(out) } }
+        root.findFile("$safeName.zip")?.delete()
+        return documentPart.renameTo("$safeName.zip")
+    }
+
+    private fun finalizeLocalFolder(zipf: File, safeName: String, images: List<File>): Boolean {
+        val folder = File(zipf.parentFile, safeName).apply { mkdirs() }
+        images.forEachIndexed { index, image ->
+            val final = File(folder, "%03d.JPG".format(index + 1))
+            val part = File(folder, "${final.name}.part")
+            image.copyTo(part, overwrite = true)
+            if (final.exists()) final.delete()
+            if (!part.renameTo(final)) return false
+        }
+        return true
+    }
+
+    private fun finalizeDocumentFolder(
+        activity: DlActivity,
+        root: DocumentFile,
+        safeName: String,
+        images: List<File>
+    ): Boolean {
+        val folder = root.findFile(safeName)?.takeIf { it.isDirectory } ?: root.createDirectory(safeName) ?: return false
+        images.forEachIndexed { index, image ->
+            val fileName = "%03d.JPG".format(index + 1)
+            folder.findFile(fileName)?.delete()
+            val outputDocument = folder.createFile("image/jpeg", fileName) ?: return false
+            val output = activity.contentResolver.openOutputStream(outputDocument.uri) ?: return false
+            output.use { out -> image.inputStream().use { it.copyTo(out) } }
+        }
+        return true
     }
 
     var onDownloadedListener: OnDownloadedListener? = null
