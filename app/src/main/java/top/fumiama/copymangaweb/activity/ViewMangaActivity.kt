@@ -56,6 +56,7 @@ class ViewMangaActivity : ToolsBoxActivity() {
     private var currentItem = 0
     private var notUseVP = true
     private var onlineAdapter: RecyclerView.Adapter<*>? = null
+    private var readerPrepared = false
     private var mangaZip = zipFile
     val dlZip2View = mangaZip != null
     private val volTurnPage get() = p["volturn"] == "true"
@@ -96,10 +97,12 @@ class ViewMangaActivity : ToolsBoxActivity() {
         tt = TimeThread(handler, 22)
         tt.canDo = true
         tt.start()
-        dialog = Dialog(this)
-        dialog?.apply {
-            setContentView(R.layout.dialog_unzipping)
-            show()
+        if (dlZip2View) {
+            dialog = Dialog(this)
+            dialog?.apply {
+                setContentView(R.layout.dialog_unzipping)
+                show()
+            }
         }
         mBinding.oneinfo.inftitle.ttitle.apply { post { text = titleText } }
         Log.d("MyVM", "dlZip2View: $dlZip2View, mangaZip: $mangaZip")
@@ -113,14 +116,8 @@ class ViewMangaActivity : ToolsBoxActivity() {
             }
             runOnUiThread {
                 try {
-                    prepareItems()
-                    if(pn > 0) {
-                        pageNum = pn
-                        pn = -1
-                    } else if(pn == -2){
-                        pageNum = count
-                        pn = -1
-                    }
+                    if (!dlZip2View && count == 0) mBinding.readerWaiting.visibility = View.VISIBLE
+                    else prepareReaderItems()
                 } catch (e: Exception) {
                     e.printStackTrace()
                     toolsBox.toastError("准备控件错误")
@@ -130,6 +127,20 @@ class ViewMangaActivity : ToolsBoxActivity() {
                 }
             }
         }.start()
+    }
+
+    private fun prepareReaderItems() {
+        if (readerPrepared || count <= 0) return
+        prepareItems()
+        readerPrepared = true
+        mBinding.readerWaiting.visibility = View.GONE
+        if(pn > 0) {
+            pageNum = pn
+            pn = -1
+        } else if(pn == -2){
+            pageNum = count
+            pn = -1
+        }
     }
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {
@@ -296,7 +307,7 @@ class ViewMangaActivity : ToolsBoxActivity() {
             setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
                 override fun onProgressChanged(p0: SeekBar?, p1: Int, isHuman: Boolean) {
                     if (isHuman) {
-                        val target = ((p1 * size) / 100).coerceIn(1, size.coerceAtLeast(1))
+                        val target = ((p1 * count) / 100).coerceIn(1, count.coerceAtLeast(1))
                         if (target != pageNum) setPageNumber(target)
                     }
                 }
@@ -617,8 +628,12 @@ class ViewMangaActivity : ToolsBoxActivity() {
             va?.get()?.runOnUiThread {
                 va?.get()?.apply {
                     count = imgUrls.size
-                    if (r2l) onlineAdapter?.notifyDataSetChanged()
-                    else onlineAdapter?.notifyItemRangeInserted(start + 1, urls.size)
+                    if (!readerPrepared) prepareReaderItems()
+                    else if (r2l) onlineAdapter?.notifyDataSetChanged()
+                    else onlineAdapter?.notifyItemRangeInserted(
+                        if (verticalReading) start + 1 else start,
+                        urls.size
+                    )
                     updateSeekText()
                     if (finished) Log.d("MyVM", "All streamed images loaded: $count")
                 }

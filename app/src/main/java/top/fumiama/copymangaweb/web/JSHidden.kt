@@ -30,6 +30,10 @@ class JSHidden {
         wm?.get()?.rememberChapterSelectionUrl(chapterUrl)
     }
     @JavascriptInterface
+    fun startChapter(header: String) {
+        wm?.get()?.startViewManga(header)
+    }
+    @JavascriptInterface
     fun loadChapter(listString: String){
         wm?.get()?.callViewManga(listString)
     }

@@ -16,7 +16,6 @@ if (typeof (loaded) == "undefined") {
         let lastTime = 0;
         let ticking = false;
         let sentImages = 0;
-        let readerStarted = false;
         let finished = false;
         let bottomReachedAt = 0;
         const backgroundDownload = GM.isDownloadMode();
@@ -29,6 +28,7 @@ if (typeof (loaded) == "undefined") {
             if(prevChapter == location.href) prevChapter = "null";
             return document.title.split(" - ")[1] + " " + location.href.substring(location.href.lastIndexOf("/")+1) + "\n" + nextChapter + "\n" + prevChapter;
         }
+        if (!backgroundDownload) GM.startChapter(chapterHeader());
         function emitReaderChunk(finalChunk) {
             if (backgroundDownload) return;
             var images = document.getElementsByClassName("container-fluid comicContent")[0].getElementsByTagName("li");
@@ -38,11 +38,10 @@ if (typeof (loaded) == "undefined") {
                 if (!img || !img.dataset.src) break;
                 available.push(img.dataset.src);
             }
-            var amount = finalChunk ? available.length : Math.floor(available.length / 50) * 50;
+            var amount = available.length;
             if (amount <= 0) return;
             var chunk = available.slice(0, amount).join("\n");
-            GM.loadChapterChunk((readerStarted ? "" : chapterHeader() + "\n") + chunk, !readerStarted, finalChunk);
-            readerStarted = true;
+            GM.loadChapterChunk(chunk, false, finalChunk);
             sentImages += amount;
         }
         function requestTick() {
@@ -65,8 +64,10 @@ if (typeof (loaded) == "undefined") {
         function finishChapter(urls) {
             if (finished || urls.length <= 0) return false;
             finished = true;
-            GM.setLoadingDialog(false);
-            if (backgroundDownload) GM.loadChapter(chapterHeader() + "\n" + urls.join("\n"));
+            if (backgroundDownload) {
+                GM.setLoadingDialog(false);
+                GM.loadChapter(chapterHeader() + "\n" + urls.join("\n"));
+            }
             else emitReaderChunk(true);
             return true;
         }
@@ -78,7 +79,7 @@ if (typeof (loaded) == "undefined") {
                 const count = parseInt(document.getElementsByClassName("comicCount")[0].innerText) || 0;
                 const chapterUrls = collectChapterUrls();
                 const progress = backgroundDownload ? Math.max(index, chapterUrls.length) : index;
-                GM.setLoadingDialogProgress((backgroundDownload ? "背景載入 " : "") + progress, count.toString());
+                if (backgroundDownload) GM.setLoadingDialogProgress("背景載入 " + progress, count.toString());
                 emitReaderChunk(false);
                 /* The visible page counter can remain at 22/23 even when the
                    final image and all URLs are ready. Complete from the collected
@@ -104,7 +105,7 @@ if (typeof (loaded) == "undefined") {
         var url = location.href;
         if(url.indexOf("/chapter/") > 0){
             GM.rememberChapterSelectionUrl(url);
-            GM.setLoadingDialog(true);
+            if (GM.isDownloadMode()) GM.setLoadingDialog(true);
             smoothLoadChapter(GM.getChapterLoadSpeed(), 16);
         } else {
             var json = Array();

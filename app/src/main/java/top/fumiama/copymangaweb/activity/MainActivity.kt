@@ -245,23 +245,33 @@ class MainActivity: ToolsBoxActivity() {
         } }
     }
 
+    fun startViewManga(header: String) {
+        val lines = header.split('\n').filter { it.isNotBlank() }
+        if (lines.size < 3 || saveUrlsOnly) return
+        ViewMangaActivity.titleText = lines[0].substringBeforeLast(' ')
+        ViewMangaActivity.nextChapterUrl = lines[1].let { if (it == "null") null else it }
+        ViewMangaActivity.previousChapterUrl = lines[2].let { if (it == "null") null else it }
+        ViewMangaActivity.imgUrls = arrayOf()
+        runOnUiThread {
+            startActivity(Intent(this, ViewMangaActivity::class.java))
+        }
+    }
+
     @Synchronized
     fun callViewMangaChunk(content: String, first: Boolean, finished: Boolean) {
-        lifecycleScope.launch { withContext(Dispatchers.IO) {
-            val lines = content.split('\n').filter { it.isNotBlank() }
-            if (first) {
-                if (lines.size < 4) return@withContext
-                ViewMangaActivity.titleText = lines[0].substringBeforeLast(' ')
-                ViewMangaActivity.nextChapterUrl = lines[1].let { if (it == "null") null else it }
-                ViewMangaActivity.previousChapterUrl = lines[2].let { if (it == "null") null else it }
-                ViewMangaActivity.imgUrls = lines.drop(3).toTypedArray()
-                withContext(Dispatchers.Main) {
-                    startActivity(Intent(this@MainActivity, ViewMangaActivity::class.java))
-                }
-            } else {
-                ViewMangaActivity.appendOnlineImages(lines.toTypedArray(), finished)
+        val lines = content.split('\n').filter { it.isNotBlank() }
+        if (first) {
+            if (lines.size < 4) return
+            ViewMangaActivity.titleText = lines[0].substringBeforeLast(' ')
+            ViewMangaActivity.nextChapterUrl = lines[1].let { if (it == "null") null else it }
+            ViewMangaActivity.previousChapterUrl = lines[2].let { if (it == "null") null else it }
+            ViewMangaActivity.imgUrls = lines.drop(3).toTypedArray()
+            runOnUiThread {
+                startActivity(Intent(this, ViewMangaActivity::class.java))
             }
-        } }
+        } else {
+            ViewMangaActivity.appendOnlineImages(lines.toTypedArray(), finished)
+        }
     }
 
     companion object {
