@@ -4,8 +4,10 @@ import android.animation.ObjectAnimator
 import android.annotation.SuppressLint
 import android.app.Dialog
 import android.content.Intent
+import android.content.res.ColorStateList
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.Color
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
@@ -91,6 +93,7 @@ class ViewMangaActivity : ToolsBoxActivity() {
         setContentView(mBinding.root)
         va = WeakReference(this)
         p = PropertiesTools(File("$filesDir/settings.properties"))
+        applyReaderAppearance()
         r2l = p["r2l"] == "true"
         notUseVP = p["noAnimation"] == "true" && !verticalReading
         handler = MyHandler(toolsBox)
@@ -127,6 +130,49 @@ class ViewMangaActivity : ToolsBoxActivity() {
                 }
             }
         }.start()
+    }
+
+    private fun applyReaderAppearance() {
+        val dark = p["webDarkMode"] == "true"
+        val background = if (dark) Color.BLACK else Color.WHITE
+        val panel = if (dark) Color.rgb(24, 24, 24) else Color.WHITE
+        val foreground = if (dark) Color.WHITE else Color.BLACK
+        val controlTint = ColorStateList.valueOf(if (dark) Color.rgb(32, 32, 32) else Color.WHITE)
+
+        listOf(mBinding.vcp, mBinding.vone.root, mBinding.vp, mBinding.vcontinuous).forEach {
+            it.setBackgroundColor(background)
+        }
+        mBinding.oneinfo.inftitle.titleCard.setCardBackgroundColor(panel)
+        mBinding.oneinfo.inftitle.ttitle.setTextColor(foreground)
+        mBinding.oneinfo.inftitle.isearch.setColorFilter(foreground)
+        mBinding.oneinfo.infoProgress.backgroundTintList = ColorStateList.valueOf(panel)
+        mBinding.oneinfo.inftxtprogress.setTextColor(foreground)
+        mBinding.infcard.idc.setCardBackgroundColor(panel)
+        mBinding.infcard.idtime.setTextColor(foreground)
+        listOf(
+            mBinding.infcard.idtbvolturn,
+            mBinding.infcard.idtbvh,
+            mBinding.infcard.idtbvp,
+            mBinding.infcard.idtblr
+        ).forEach {
+            it.setTextColor(foreground)
+            it.backgroundTintList = controlTint
+        }
+        listOf(mBinding.continuousPrevious, mBinding.continuousNext).forEach {
+            it.setTextColor(foreground)
+            it.backgroundTintList = controlTint
+        }
+
+        window.statusBarColor = background
+        window.navigationBarColor = background
+        var systemUi = window.decorView.systemUiVisibility
+        systemUi = if (dark) systemUi and View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR.inv()
+        else systemUi or View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            systemUi = if (dark) systemUi and View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR.inv()
+            else systemUi or View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR
+        }
+        window.decorView.systemUiVisibility = systemUi
     }
 
     private fun prepareReaderItems() {
@@ -387,7 +433,9 @@ class ViewMangaActivity : ToolsBoxActivity() {
         if (chapterUrl != null) {
             if (!goNext) pn = -2
             tt.canDo = false
-            MainActivity.wm?.get()?.mBinding?.w?.post { MainActivity.wm?.get()?.mBinding?.w?.loadUrl(chapterUrl) }
+            MainActivity.wm?.get()?.mBinding?.wh?.post {
+                MainActivity.wm?.get()?.mBinding?.wh?.loadUrl(chapterUrl)
+            }
             finish()
             return
         }
@@ -472,6 +520,10 @@ class ViewMangaActivity : ToolsBoxActivity() {
                         layoutParams = RecyclerView.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
                         setPadding(0, 12, 0, 12)
                         minHeight = (48 * resources.displayMetrics.density).toInt()
+                        if (p["webDarkMode"] == "true") {
+                            setTextColor(Color.WHITE)
+                            backgroundTintList = ColorStateList.valueOf(Color.rgb(32, 32, 32))
+                        }
                     }
                     return ContinuousViewData(button)
                 }
@@ -625,6 +677,7 @@ class ViewMangaActivity : ToolsBoxActivity() {
             if (urls.isEmpty()) return
             val start = imgUrls.size
             imgUrls += urls
+            Log.d("MyVM", "Online images collected: ${imgUrls.size}, finished=$finished")
             va?.get()?.runOnUiThread {
                 va?.get()?.apply {
                     count = imgUrls.size
@@ -639,5 +692,6 @@ class ViewMangaActivity : ToolsBoxActivity() {
                 }
             }
         }
+
     }
 }

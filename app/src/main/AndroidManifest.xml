@@ -29,5 +29,8 @@
         <activity android:name=".activity.DlActivity"/>
         <activity android:name=".activity.DlListActivity"/>
         <activity android:name=".activity.SettingsActivity"/>
+        <activity android:name=".activity.NovelDetailActivity"/>
+        <activity android:name=".activity.NovelReaderActivity"/>
+        <activity android:name=".activity.NovelLibraryActivity"/>
     </application>
 </manifest>

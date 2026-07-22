@@ -18,6 +18,35 @@
             android:hint="https://www.mangacopy.com/"
             android:inputType="textUri"
             android:singleLine="true" />
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:text="輕小說 API 網址（與漫畫網站分開）" />
+        <EditText
+            android:id="@+id/novelApiUrl"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:hint="https://api.copy3000.com/"
+            android:inputType="textUri"
+            android:singleLine="true" />
+        <Button
+            android:id="@+id/openNovelLibrary"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="開啟本地輕小說書架" />
+        <Button
+            android:id="@+id/exportNovelData"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="匯出小說清單及閱讀歷史" />
+        <Button
+            android:id="@+id/importNovelData"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="匯入小說清單及閱讀歷史" />
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="APP 與網頁顯示模式" />
+        <Spinner android:id="@+id/webDarkMode" android:layout_width="match_parent" android:layout_height="48dp" />
         <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="20dp" android:text="閱讀設定" android:textSize="18sp" android:textStyle="bold" />
         <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="圖片畫質" />
         <Spinner android:id="@+id/quality" android:layout_width="match_parent" android:layout_height="48dp" />

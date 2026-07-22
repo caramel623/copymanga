@@ -9,6 +9,9 @@ import top.fumiama.copymangaweb.tool.LocalCredentialStore
 import top.fumiama.copymangaweb.tool.PropertiesTools
 import java.io.File
 import android.os.Build
+import android.content.Intent
+import top.fumiama.copymangaweb.activity.NovelDetailActivity
+import top.fumiama.copymangaweb.activity.NovelLibraryActivity
 
 class JS {
     private fun settings() = wm?.get()?.let { PropertiesTools(File("${it.filesDir}/settings.properties")) }
@@ -32,6 +35,9 @@ class JS {
 
     @JavascriptInterface
     fun isRanobeTraditionalEnabled(): Boolean = settings()?.get("ranobeTraditional") != "false"
+
+    @JavascriptInterface
+    fun isWebDarkModeEnabled(): Boolean = settings()?.get("webDarkMode") == "true"
 
     @JavascriptInterface
     fun toTraditionalChinese(text: String): String {
@@ -74,6 +80,7 @@ class JS {
     @JavascriptInterface
     fun loadComic(url: String) {
         val base = wm?.get()?.let { SiteConfig.get(it).trimEnd('/') } ?: return
+        if (url.contains("/details/comic/")) wm?.get()?.rememberChapterEntryOrigin(url)
         val comicBase = "$base/comic"
         val u = when {
             url.contains("/details/comic/") -> "$comicBase${url.substringAfter("comic")}"
@@ -86,6 +93,31 @@ class JS {
                 .encodedPath.orEmpty()
         }
         wm?.get()?.loadHiddenUrl(u)
+    }
+    @JavascriptInterface
+    fun openNovel(url: String) {
+        val activity = wm?.get() ?: return
+        val path = Uri.parse(url).encodedPath.orEmpty().trimEnd('/')
+        val segments = path.split('/').filter { it.isNotBlank() }
+        val marker = segments.indexOfLast { it.equals("book", true) || it.equals("novel", true) }
+        val slug = segments.getOrNull(marker + 1)?.takeIf {
+            marker >= 0 && it.isNotBlank() && it !in listOf("discover", "search", "ranking")
+        } ?: return
+        activity.runOnUiThread {
+            activity.startActivity(Intent(activity, NovelDetailActivity::class.java)
+                .putExtra(NovelDetailActivity.EXTRA_SLUG, slug))
+        }
+    }
+    @JavascriptInterface
+    fun openNovelLocalShelf() {
+        val activity = wm?.get() ?: return
+        activity.runOnUiThread {
+            activity.startActivity(Intent(activity, NovelLibraryActivity::class.java))
+        }
+    }
+    @JavascriptInterface
+    fun onVisiblePage(url: String) {
+        wm?.get()?.onVisiblePage(url)
     }
     @JavascriptInterface
     fun hideFab() {

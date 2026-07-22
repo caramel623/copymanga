@@ -8,9 +8,26 @@ import top.fumiama.copymangaweb.activity.MainActivity.Companion.wm
 import top.fumiama.copymangaweb.handler.MainHandler
 import top.fumiama.copymangaweb.tool.PropertiesTools
 import top.fumiama.copymangaweb.tool.MangaDlTools.Companion.wmdlt
+import top.fumiama.copymangaweb.view.JSWebView
 import java.io.File
+import java.lang.ref.WeakReference
 
-class JSHidden {
+class JSHidden(private val webView: WeakReference<JSWebView>) {
+    @JavascriptInterface
+    fun scheduleCollectorTick() {
+        val view = webView.get() ?: return
+        view.postDelayed({
+            view.evaluateJavascript("window.cmCollectorTick && window.cmCollectorTick();", null)
+        }, 250)
+    }
+
+    @JavascriptInterface
+    fun reportCollectorCount(expected: Int, actual: Int, source: String) {
+        val message = "Collector count: expected=$expected, actual=$actual, source=$source"
+        if (expected > 0 && expected != actual) Log.w("MyJSH", message)
+        else Log.d("MyJSH", message)
+    }
+
     @JavascriptInterface
     fun isDownloadMode(): Boolean = wm?.get()?.saveUrlsOnly == true
 

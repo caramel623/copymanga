@@ -10,6 +10,35 @@ if (typeof (loaded) == "undefined") {
             var game = document.getElementsByName("exchange");
             if (game.length) game[0].hidden = true;
         },
+        applyWebDarkMode: function () {
+            var styleId = "cm-web-dark-style";
+            var enabled = GM.isWebDarkModeEnabled();
+            document.documentElement.classList.toggle("cm-web-dark", enabled);
+            var existing = document.getElementById(styleId);
+            if (!enabled) {
+                if (existing) existing.remove();
+                return;
+            }
+            if (existing) return;
+            var style = document.createElement("style");
+            style.id = styleId;
+            style.textContent = [
+                ":root.cm-web-dark{color-scheme:dark;background:#000!important;}",
+                ":root.cm-web-dark body{background:#000!important;color:#f5f5f5!important;}",
+                ":root.cm-web-dark body *{color:#f5f5f5!important;border-color:#3b3b3b!important;}",
+                ":root.cm-web-dark body div,:root.cm-web-dark body main,:root.cm-web-dark body section,:root.cm-web-dark body article,:root.cm-web-dark body aside,:root.cm-web-dark body header,:root.cm-web-dark body footer,:root.cm-web-dark body nav,:root.cm-web-dark body ul,:root.cm-web-dark body ol,:root.cm-web-dark body li,:root.cm-web-dark body form,:root.cm-web-dark body table,:root.cm-web-dark body thead,:root.cm-web-dark body tbody,:root.cm-web-dark body tr,:root.cm-web-dark body td,:root.cm-web-dark body th{background-color:#000!important;}",
+                ":root.cm-web-dark body *::before,:root.cm-web-dark body *::after{border-color:#3b3b3b!important;}",
+                ":root.cm-web-dark a,:root.cm-web-dark a *{color:#8ab4f8!important;}",
+                ":root.cm-web-dark input,:root.cm-web-dark textarea,:root.cm-web-dark select,:root.cm-web-dark option,:root.cm-web-dark button,:root.cm-web-dark [role='button'],:root.cm-web-dark [contenteditable='true']{background:#151515!important;color:#fff!important;border-color:#555!important;}",
+                ":root.cm-web-dark input::placeholder,:root.cm-web-dark textarea::placeholder{color:#aaa!important;opacity:1!important;}",
+                ":root.cm-web-dark dialog,:root.cm-web-dark [role='dialog'],:root.cm-web-dark [class*='modal'],:root.cm-web-dark [class*='Modal'],:root.cm-web-dark [class*='popup'],:root.cm-web-dark [class*='Popup'],:root.cm-web-dark [class*='drawer'],:root.cm-web-dark [class*='Drawer']{background:#080808!important;color:#fff!important;border-color:#555!important;}",
+                ":root.cm-web-dark [class*='mask'],:root.cm-web-dark [class*='Mask'],:root.cm-web-dark [class*='overlay'],:root.cm-web-dark [class*='Overlay']{background-color:rgba(0,0,0,.82)!important;}",
+                ":root.cm-web-dark hr{background:#3b3b3b!important;border-color:#3b3b3b!important;}",
+                ":root.cm-web-dark img,:root.cm-web-dark picture,:root.cm-web-dark video,:root.cm-web-dark canvas{filter:none!important;opacity:1!important;}",
+                ":root.cm-web-dark ::selection{background:#ddd!important;color:#000!important;}"
+            ].join("");
+            (document.head || document.documentElement).appendChild(style);
+        },
         prepareBookrackSortControls: function () {
             if (document.getElementById("cm-bookrack-sort")) return;
             var panel = document.createElement("div");
@@ -307,15 +336,63 @@ if (typeof (loaded) == "undefined") {
         },
         resetPreUrl: function () { this.preUrl = ""; },
         loadChapter: function () { this.clickClassCenter("comicContentPopupImageItem", 0); GM.loadComic(location.href); },
+        prepareNovelLinks: function () {
+            if (window.cmNovelLinkHandlerInstalled) return;
+            window.cmNovelLinkHandlerInstalled = true;
+            document.addEventListener("click", function (event) {
+                if (event.target && event.target.closest && event.target.closest("#cm-open-local-novel-shelf")) return;
+                var anchor = event.target && event.target.closest ? event.target.closest("a[href]") : null;
+                var card = event.target && event.target.closest ? event.target.closest(".comicItem") : null;
+                var href = anchor ? (anchor.href || "") : "";
+                if (!href && card) {
+                    var image = card.querySelector("img[src*='/book/'], img[data-src*='/book/']");
+                    var source = image ? (image.getAttribute("data-src") || image.src || "") : "";
+                    var match = source.match(/\/book\/([^/]+)\/cover\//i);
+                    if (match) href = location.origin + "/book/" + match[1];
+                }
+                if (!href) return;
+                var path = "";
+                try { path = new URL(href, location.href).pathname; } catch (_) { return; }
+                var isNovelDetail = /\/(?:book|novel)\/[^/?#]+\/?$/i.test(path) &&
+                    !/\/(?:bookrack|discover|search|ranking)\/?$/i.test(path);
+                if (!isNovelDetail) return;
+                event.preventDefault();
+                event.stopPropagation();
+                GM.openNovel(href);
+            }, true);
+        },
+        prepareNovelShelfEntryButton: function () {
+            var existing = document.getElementById("cm-open-local-novel-shelf");
+            if (location.pathname.indexOf("/h5/discover") < 0) {
+                if (existing) existing.remove();
+                return;
+            }
+            if (existing) return;
+            var button = document.createElement("button");
+            button.id = "cm-open-local-novel-shelf";
+            button.type = "button";
+            button.innerHTML = "本地<br>書架";
+            button.title = "進入本地輕小說書架";
+            button.style.cssText = "position:fixed;right:12px;bottom:88px;z-index:99999;width:32px;height:32px;box-sizing:border-box;border:0;border-radius:16px;padding:1px;background:rgba(25,25,25,.88);color:#fff!important;font-size:8px;line-height:10px;box-shadow:0 2px 7px rgba(0,0,0,.45);";
+            button.addEventListener("click", function (event) {
+                event.preventDefault(); event.stopPropagation(); event.stopImmediatePropagation();
+                GM.openNovelLocalShelf();
+            }, true);
+            document.body.appendChild(button);
+        },
         urlChangeListener: function (todo) {
             setInterval(function () { if (invoke.notCallGM(location.href)) { todo(); } }, 1000);
         }
     };
     function modify() {
         var url = location.href;
+        GM.onVisiblePage(url);
         GM.hideFab();
+        invoke.applyWebDarkMode();
         invoke.prepareEncryptedLogin();
         invoke.convertRanobeToTraditional();
+        invoke.prepareNovelLinks();
+        invoke.prepareNovelShelfEntryButton();
         if (url.endsWith("/index")) {
             invoke.pinTitle();
         }
@@ -336,6 +413,7 @@ if (typeof (loaded) == "undefined") {
         }
     }
     modify();
+    invoke.preUrl = location.href;
     invoke.urlChangeListener(modify);
 } else {
     setTimeout(modify, 1280);

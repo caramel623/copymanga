@@ -2,6 +2,7 @@ package top.fumiama.copymangaweb.activity
 
 import android.annotation.SuppressLint
 import android.content.Intent
+import android.graphics.Color
 import android.net.Uri
 import android.os.Bundle
 import android.os.Looper
@@ -21,6 +22,8 @@ import top.fumiama.copymangaweb.activity.viewmodel.MainViewModel
 import top.fumiama.copymangaweb.databinding.ActivityMainBinding
 import top.fumiama.copymangaweb.handler.MainHandler
 import top.fumiama.copymangaweb.tool.InsetsTools
+import top.fumiama.copymangaweb.tool.ChapterNavigationStore
+import top.fumiama.copymangaweb.tool.PropertiesTools
 import top.fumiama.copymangaweb.tool.MangaDlTools.Companion.wmdlt
 import top.fumiama.copymangaweb.tool.SetDraggable
 import top.fumiama.copymangaweb.tool.Updater
@@ -29,6 +32,7 @@ import top.fumiama.copymangaweb.web.JS
 import top.fumiama.copymangaweb.web.JSHidden
 import top.fumiama.copymangaweb.web.WebChromeClient
 import java.lang.ref.WeakReference
+import java.io.File
 
 class MainActivity: ToolsBoxActivity() {
     var uploadMessageAboveL: ValueCallback<Array<Uri>>? = null
@@ -36,22 +40,100 @@ class MainActivity: ToolsBoxActivity() {
     lateinit var mBinding: ActivityMainBinding
     private val mViewModel = MainViewModel()
     private var currentSiteUrl = ""
+    private val chapterNavigationStore by lazy { ChapterNavigationStore(this) }
+    private var chapterEntryOriginUrl: String? = null
+    private var chapterEntryComicSlug: String? = null
+    private var lastVisibleNonComicUrl: String? = null
     // The host may be changed in Settings while reading, so retain only the
     // comic page path and resolve it against the current configured entry.
     var lastComicSelectionPath: String? = null
 
-    fun lastComicSelectionUrl(): String? = lastComicSelectionPath?.let { path ->
-        SiteConfig.get(this).trimEnd('/') + if (path.startsWith('/')) path else "/$path"
+    fun lastComicSelectionUrl(): String? {
+        val saved = chapterNavigationStore.read()
+        saved.selectionUrl?.let { return it }
+        val path = lastComicSelectionPath ?: saved.selectionPath ?: return null
+        return SiteConfig.get(this).trimEnd('/') + if (path.startsWith('/')) path else "/$path"
     }
 
     fun rememberChapterSelectionUrl(chapterUrl: String) {
         val path = Uri.parse(chapterUrl).encodedPath.orEmpty()
         val selection = path.substringBefore("/chapter/")
-        if (selection.isNotBlank() && selection != path) lastComicSelectionPath = selection
+        if (selection.isNotBlank() && selection != path) {
+            lastComicSelectionPath = selection
+            chapterNavigationStore.recordChapter(chapterUrl, selection)
+        }
+    }
+
+    fun onVisiblePage(pageUrl: String) {
+        mBinding.w.post { handleVisiblePage(pageUrl) }
+    }
+
+    fun onVisiblePageStarted(pageUrl: String) {
+        handleVisiblePage(pageUrl)
+    }
+
+    private fun handleVisiblePage(pageUrl: String) {
+        val path = Uri.parse(pageUrl).encodedPath.orEmpty().trimEnd('/')
+        if (isOutsideComicFlow(path)) {
+            chapterNavigationStore.clear()
+            chapterEntryOriginUrl = null
+            chapterEntryComicSlug = null
+            lastComicSelectionPath = null
+            lastVisibleNonComicUrl = pageUrl
+        } else if (path.contains("/details/comic/")) {
+            rememberChapterEntryOrigin(pageUrl)
+        } else if (path.contains("/comicContent/") || path.contains("/chapter/")) {
+            chapterNavigationStore.recordChapter(pageUrl)
+        }
+    }
+
+    fun rememberChapterEntryOrigin(selectionUrl: String) {
+        val slug = Uri.parse(selectionUrl).encodedPath.orEmpty()
+            .substringAfter("/details/comic/", "")
+            .substringBefore('/')
+            .takeIf { it.isNotBlank() } ?: return
+        mBinding.w.post {
+            val saved = chapterNavigationStore.read()
+            if ((chapterEntryComicSlug == slug && chapterEntryOriginUrl != null) ||
+                (saved.comicSlug == slug && saved.originUrl != null)) {
+                chapterEntryComicSlug = slug
+                chapterEntryOriginUrl = chapterEntryOriginUrl ?: saved.originUrl
+                return@post
+            }
+            val history = mBinding.w.copyBackForwardList()
+            var origin: String? = lastVisibleNonComicUrl
+            if (origin == null) {
+                for (i in history.currentIndex - 1 downTo 0) {
+                    val itemUrl = history.getItemAtIndex(i).url
+                    val path = Uri.parse(itemUrl).encodedPath.orEmpty().trimEnd('/')
+                    if (itemUrl.startsWith("http") && isOutsideComicFlow(path)) {
+                        origin = itemUrl
+                        break
+                    }
+                }
+            }
+            chapterEntryComicSlug = slug
+            chapterEntryOriginUrl = origin
+            chapterNavigationStore.recordEntry(origin, selectionUrl, slug)
+        }
+    }
+
+    private fun returnToChapterEntryOrigin(): Boolean {
+        val saved = chapterNavigationStore.read()
+        val origin = chapterEntryOriginUrl ?: saved.originUrl ?: return false
+        val slug = chapterEntryComicSlug ?: saved.comicSlug ?: return false
+        val path = Uri.parse(mBinding.w.url.orEmpty()).encodedPath.orEmpty().trimEnd('/')
+        val isMobileSelection = path.substringAfter("/details/comic/", "")
+            .substringBefore('/') == slug
+        val isDesktopSelection = path == "/comic/$slug"
+        if (!isMobileSelection && !isDesktopSelection) return false
+        chapterNavigationStore.markReturningToOrigin()
+        mBinding.w.loadUrl(origin)
+        return true
     }
 
     fun returnToChapterSelection() {
-        val selectionPath = lastComicSelectionPath
+        val selectionPath = lastComicSelectionPath ?: chapterNavigationStore.read().selectionPath
         val comicSlug = selectionPath?.substringAfterLast('/')?.takeIf { it.isNotBlank() }
         mBinding.w.apply { post {
             stopLoading()
@@ -70,10 +152,17 @@ class MainActivity: ToolsBoxActivity() {
                     }
                 }
             }
+            chapterNavigationStore.markReturningToSelection()
             if (targetIndex >= 0) goBackOrForward(targetIndex - currentIndex)
             else lastComicSelectionUrl()?.let { loadUrl(it) }
         } }
     }
+
+    private fun isOutsideComicFlow(path: String): Boolean =
+        !path.contains("/details/comic/") &&
+            !path.contains("/comicContent/") &&
+            !path.contains("/chapter/") &&
+            !path.startsWith("/comic/")
 
     @SuppressLint("JavascriptInterface")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -83,6 +172,12 @@ class MainActivity: ToolsBoxActivity() {
         mBinding.lifecycleOwner = this
         setContentView(mBinding.root)
         InsetsTools.applySafeContentInsets(this, mBinding.root)
+
+        chapterNavigationStore.read().let { saved ->
+            chapterEntryOriginUrl = saved.originUrl
+            chapterEntryComicSlug = saved.comicSlug
+            lastComicSelectionPath = saved.selectionPath
+        }
 
         wm = WeakReference(this)
         mh = MainHandler(Looper.myLooper()!!)
@@ -100,6 +195,7 @@ class MainActivity: ToolsBoxActivity() {
 
             WebView.setWebContentsDebuggingEnabled(true)
             mBinding.w.apply { post {
+                setBackgroundColor(webBackgroundColor())
                 setWebViewClient("i.js")
                 webChromeClient = WebChromeClient()
                 loadJSInterface(JS())
@@ -111,7 +207,7 @@ class MainActivity: ToolsBoxActivity() {
                 settings.userAgentString = getString(R.string.pc_ua)
                 webChromeClient = WebChromeClient()
                 setWebViewClient("h.js")
-                loadJSInterface(JSHidden())
+                loadJSInterface(JSHidden(WeakReference(this)))
             } }
         }
         SetDraggable().with(this).onto(mBinding.fab)
@@ -125,11 +221,26 @@ class MainActivity: ToolsBoxActivity() {
                 currentSiteUrl = configuredUrl
                 mBinding.w.loadUrl(configuredUrl)
             }
+            applyWebDarkMode()
         }
+    }
+
+    private fun webDarkModeEnabled(): Boolean =
+        PropertiesTools(File("$filesDir/settings.properties"))["webDarkMode"] == "true"
+
+    private fun webBackgroundColor(): Int = if (webDarkModeEnabled()) Color.BLACK else Color.WHITE
+
+    private fun applyWebDarkMode() {
+        mBinding.w.setBackgroundColor(webBackgroundColor())
+        mBinding.w.evaluateJavascript(
+            "if (typeof invoke !== 'undefined') invoke.applyWebDarkMode();",
+            null
+        )
     }
 
     @Deprecated("Deprecated in Java")
     override fun onBackPressed() {
+        if (returnToChapterEntryOrigin()) return
         if(mBinding.w.canGoBack()) mBinding.w.goBack()
         else super.onBackPressed()
     }

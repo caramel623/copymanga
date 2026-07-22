@@ -28,6 +28,7 @@ import top.fumiama.copymangaweb.web.JSHidden
 import top.fumiama.copymangaweb.web.WebChromeClient
 import java.io.File
 import java.lang.Thread.sleep
+import java.lang.ref.WeakReference
 
 class DlActivity : ToolsBoxActivity() {
     lateinit var mBinding: ActivityDlBinding
@@ -59,7 +60,7 @@ class DlActivity : ToolsBoxActivity() {
             settings.userAgentString = getString(R.string.pc_ua)
             webChromeClient = WebChromeClient()
             setWebViewClient("h.js")
-            loadJSInterface(JSHidden())
+            loadJSInterface(JSHidden(WeakReference(this)))
             // 網頁僅用於背景掃描章節圖片網址，不顯示實際網站內容。
             visibility = View.INVISIBLE
         } }

@@ -17,12 +17,13 @@ import top.fumiama.copymangaweb.R
 import top.fumiama.copymangaweb.tool.SiteConfig
 import top.fumiama.copymangaweb.activity.MainActivity.Companion.wm
 
-class WebViewClient(private val context: Context, jsFileName: String):WebViewClient() {
+class WebViewClient(private val context: Context, private val jsFileName: String):WebViewClient() {
     private val js = context.assets.open(jsFileName).readBytes().decodeToString()
     override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
         super.onPageStarted(view, url, favicon)
         Log.d("MyWC", "Load URL: $url")
         url?.let {
+            if (jsFileName == "i.js") wm?.get()?.onVisiblePageStarted(it)
             if(!SiteConfig.isAllowed(context, it)){
                 view?.goBack()
                 Toast.makeText(context, R.string.blocked_ad, Toast.LENGTH_SHORT).show()
@@ -31,6 +32,7 @@ class WebViewClient(private val context: Context, jsFileName: String):WebViewCli
     }
 
     override fun onPageFinished(view: WebView?, url: String?) {
+        if (jsFileName == "i.js" && url != null) wm?.get()?.onVisiblePageStarted(url)
         wm?.get()?.lifecycleScope?.launch {
             withContext(Dispatchers.IO) {
                 delay(500)
