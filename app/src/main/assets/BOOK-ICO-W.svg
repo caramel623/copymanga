@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="67" height="146" viewBox="0 0 67 146" role="img" aria-label="我的書架">
+  <rect x="1.5" y="1.5" width="64" height="143" rx="9" fill="#FFF8E9" stroke="#0B4F4B" stroke-width="3"/>
+  <g stroke="#0B4F4B" stroke-width="3" stroke-linejoin="round" stroke-linecap="round">
+    <!-- shelf uprights and top arch -->
+    <path d="M13 105V45Q33.5 31 54 45V105" fill="none"/>
+    <!-- upper books -->
+    <path d="M19 76V49h8v27z" fill="#F49A3A"/>
+    <path d="M29 76V43h9v33z" fill="#4B9BD4"/>
+    <path d="M40 76V51h8v25z" fill="#89AC6C"/>
+    <!-- upper shelf -->
+    <path d="M14 76h39v7H14z" fill="#C38D4E"/>
+    <!-- lower books -->
+    <path d="M19 103V86l7 2v15z" fill="#4B9BD4" transform="rotate(12 22.5 94.5)"/>
+    <path d="M29 103V84h9v19z" fill="#F49A3A"/>
+    <path d="M40 103V87h8v16z" fill="#89AC6C"/>
+    <!-- lower shelf and legs -->
+    <path d="M14 103h39v7H14z" fill="#C38D4E"/>
+    <path d="M15 83v27M52 83v27" fill="none"/>
+  </g>
+</svg>

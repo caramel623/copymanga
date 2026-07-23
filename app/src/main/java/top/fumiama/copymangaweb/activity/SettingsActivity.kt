@@ -60,6 +60,13 @@ class SettingsActivity : Activity() {
         add(binding.direction, "r2l", arrayOf("由右至左", "由左至右"), arrayOf("true", "false"), "true")
         add(binding.displayMode, "noAnimation", arrayOf("單頁無動畫", "滑頁動畫"), arrayOf("true", "false"), "true")
         add(binding.pageOrientation, "vertical", arrayOf("上下滑頁", "左右滑頁"), arrayOf("true", "false"), "true")
+        add(
+            binding.novelTheme,
+            "novelTheme",
+            arrayOf("淺色：米白底深色字", "深色：深灰底淺色字", "黑色：純黑底灰白字"),
+            arrayOf("light", "dark", "black"),
+            "light"
+        )
         add(binding.ranobeTraditional, "ranobeTraditional", arrayOf("開啟：簡體轉繁體", "關閉：保留原文"), arrayOf("true", "false"), "true")
         add(binding.loadSpeed, "loadSpeed", arrayOf("慢", "標準", "快"), arrayOf("160", "320", "640"), "320")
         add(binding.downloadBatchSize, "downloadBatchSize", arrayOf("1 張", "2 張", "3 張", "4 張", "5 張"), arrayOf("1", "2", "3", "4", "5"), "5")

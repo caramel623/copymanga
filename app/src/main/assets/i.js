@@ -367,18 +367,46 @@ if (typeof (loaded) == "undefined") {
                 if (existing) existing.remove();
                 return;
             }
-            if (existing) return;
+            var resizeToHalfCard = function (target) {
+                var card = document.querySelector(".comicItem");
+                if (!card) return;
+                var rect = card.getBoundingClientRect();
+                if (!rect.width || !rect.height) return;
+                var width = Math.round(rect.width / 2);
+                var height = Math.round(rect.height / 2);
+                target.style.width = width + "px";
+                target.style.height = height + "px";
+                target.style.borderRadius = Math.max(16, Math.round(width / 3)) + "px";
+            };
+            var darkShelfIcon = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI2NyIgaGVpZ2h0PSIxNDYiIHZpZXdCb3g9IjAgMCA2NyAxNDYiIHJvbGU9ImltZyIgYXJpYS1sYWJlbD0i5oiR55qE5pu45p62Ij4KICA8cmVjdCB4PSIxLjUiIHk9IjEuNSIgd2lkdGg9IjY0IiBoZWlnaHQ9IjE0MyIgcng9IjkiIGZpbGw9IiMxMDJCNEMiIHN0cm9rZT0iIzZGQThENiIgc3Ryb2tlLXdpZHRoPSIzIi8+CiAgPGcgc3Ryb2tlPSIjQjlEN0U4IiBzdHJva2Utd2lkdGg9IjMiIHN0cm9rZS1saW5lam9pbj0icm91bmQiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCI+CiAgICA8cGF0aCBkPSJNMTMgMTA1VjQ1UTMzLjUgMzEgNTQgNDVWMTA1IiBmaWxsPSJub25lIi8+CiAgICA8cGF0aCBkPSJNMTkgNzZWNDloOHYyN3oiIGZpbGw9IiNGMkE2NUEiLz4KICAgIDxwYXRoIGQ9Ik0yOSA3NlY0M2g5djMzeiIgZmlsbD0iIzcwQjdFOCIvPgogICAgPHBhdGggZD0iTTQwIDc2VjUxaDh2MjV6IiBmaWxsPSIjOUJDQjgzIi8+CiAgICA8cGF0aCBkPSJNMTQgNzZoMzl2N0gxNHoiIGZpbGw9IiNEMUExNUQiLz4KICAgIDxwYXRoIGQ9Ik0xOSAxMDNWODZsNyAydjE1eiIgZmlsbD0iIzcwQjdFOCIgdHJhbnNmb3JtPSJyb3RhdGUoMTIgMjIuNSA5NC41KSIvPgogICAgPHBhdGggZD0iTTI5IDEwM1Y4NGg5djE5eiIgZmlsbD0iI0YyQTY1QSIvPgogICAgPHBhdGggZD0iTTQwIDEwM1Y4N2g4djE2eiIgZmlsbD0iIzlCQ0I4MyIvPgogICAgPHBhdGggZD0iTTE0IDEwM2gzOXY3SDE0eiIgZmlsbD0iI0QxQTE1RCIvPgogICAgPHBhdGggZD0iTTE1IDgzdjI3TTUyIDgzdjI3IiBmaWxsPSJub25lIi8+CiAgPC9nPgo8L3N2Zz4K";
+            var lightShelfIcon = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI2NyIgaGVpZ2h0PSIxNDYiIHZpZXdCb3g9IjAgMCA2NyAxNDYiIHJvbGU9ImltZyIgYXJpYS1sYWJlbD0i5oiR55qE5pu45p62Ij4KICA8cmVjdCB4PSIxLjUiIHk9IjEuNSIgd2lkdGg9IjY0IiBoZWlnaHQ9IjE0MyIgcng9IjkiIGZpbGw9IiNGRkY4RTkiIHN0cm9rZT0iIzBCNEY0QiIgc3Ryb2tlLXdpZHRoPSIzIi8+CiAgPGcgc3Ryb2tlPSIjMEI0RjRCIiBzdHJva2Utd2lkdGg9IjMiIHN0cm9rZS1saW5lam9pbj0icm91bmQiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCI+CiAgICA8IS0tIHNoZWxmIHVwcmlnaHRzIGFuZCB0b3AgYXJjaCAtLT4KICAgIDxwYXRoIGQ9Ik0xMyAxMDVWNDVRMzMuNSAzMSA1NCA0NVYxMDUiIGZpbGw9Im5vbmUiLz4KICAgIDwhLS0gdXBwZXIgYm9va3MgLS0+CiAgICA8cGF0aCBkPSJNMTkgNzZWNDloOHYyN3oiIGZpbGw9IiNGNDlBM0EiLz4KICAgIDxwYXRoIGQ9Ik0yOSA3NlY0M2g5djMzeiIgZmlsbD0iIzRCOUJENCIvPgogICAgPHBhdGggZD0iTTQwIDc2VjUxaDh2MjV6IiBmaWxsPSIjODlBQzZDIi8+CiAgICA8IS0tIHVwcGVyIHNoZWxmIC0tPgogICAgPHBhdGggZD0iTTE0IDc2aDM5djdIMTR6IiBmaWxsPSIjQzM4RDRFIi8+CiAgICA8IS0tIGxvd2VyIGJvb2tzIC0tPgogICAgPHBhdGggZD0iTTE5IDEwM1Y4Nmw3IDJ2MTV6IiBmaWxsPSIjNEI5QkQ0IiB0cmFuc2Zvcm09InJvdGF0ZSgxMiAyMi41IDk0LjUpIi8+CiAgICA8cGF0aCBkPSJNMjkgMTAzVjg0aDl2MTl6IiBmaWxsPSIjRjQ5QTNBIi8+CiAgICA8cGF0aCBkPSJNNDAgMTAzVjg3aDh2MTZ6IiBmaWxsPSIjODlBQzZDIi8+CiAgICA8IS0tIGxvd2VyIHNoZWxmIGFuZCBsZWdzIC0tPgogICAgPHBhdGggZD0iTTE0IDEwM2gzOXY3SDE0eiIgZmlsbD0iI0MzOEQ0RSIvPgogICAgPHBhdGggZD0iTTE1IDgzdjI3TTUyIDgzdjI3IiBmaWxsPSJub25lIi8+CiAgPC9nPgo8L3N2Zz4K";
+            var applyShelfIcon = function (target) {
+                var image = target.querySelector("img");
+                if (!image) return;
+                image.src = document.documentElement.classList.contains("cm-web-dark") ? darkShelfIcon : lightShelfIcon;
+            };
+            if (existing) {
+                resizeToHalfCard(existing);
+                applyShelfIcon(existing);
+                return;
+            }
             var button = document.createElement("button");
             button.id = "cm-open-local-novel-shelf";
             button.type = "button";
-            button.innerHTML = "本地<br>書架";
+            button.setAttribute("aria-label", "進入本地輕小說書架");
+            button.innerHTML = '<img alt="本地書架" draggable="false">';
             button.title = "進入本地輕小說書架";
-            button.style.cssText = "position:fixed;right:12px;bottom:88px;z-index:99999;width:32px;height:32px;box-sizing:border-box;border:0;border-radius:16px;padding:1px;background:rgba(25,25,25,.88);color:#fff!important;font-size:8px;line-height:10px;box-shadow:0 2px 7px rgba(0,0,0,.45);";
+            button.style.cssText = "position:fixed;right:14px;bottom:92px;z-index:99999;width:67px;height:147px;box-sizing:border-box;display:block;border:0!important;border-radius:0;padding:0!important;background:transparent!important;box-shadow:none!important;overflow:visible;";
+            button.querySelector("img").style.cssText = "display:block;width:100%;height:100%;pointer-events:none;user-select:none;filter:drop-shadow(0 4px 6px rgba(0,0,0,.55));";
+            applyShelfIcon(button);
             button.addEventListener("click", function (event) {
                 event.preventDefault(); event.stopPropagation(); event.stopImmediatePropagation();
                 GM.openNovelLocalShelf();
             }, true);
             document.body.appendChild(button);
+            resizeToHalfCard(button);
+            setTimeout(function () { resizeToHalfCard(button); }, 600);
+            setTimeout(function () { resizeToHalfCard(button); }, 1800);
         },
         urlChangeListener: function (todo) {
             setInterval(function () { if (invoke.notCallGM(location.href)) { todo(); } }, 1000);
