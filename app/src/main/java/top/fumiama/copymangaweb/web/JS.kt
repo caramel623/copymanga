@@ -102,6 +102,27 @@ class JS(private val comicWebView: Boolean = false) {
         if (!comicWebView) wm?.get()?.openComicWebView(url)
     }
     @JavascriptInterface
+    fun shouldInterceptChapterLinks(): Boolean = comicWebView
+
+    @JavascriptInterface
+    fun openChapterInReader(
+        chapterUrl: String,
+        chapterName: String,
+        comicName: String,
+        previousChapterUrl: String,
+        nextChapterUrl: String
+    ) {
+        if (comicWebView) {
+            wm?.get()?.openChapterInReader(
+                chapterUrl,
+                chapterName,
+                comicName,
+                previousChapterUrl,
+                nextChapterUrl
+            )
+        }
+    }
+    @JavascriptInterface
     fun openNovel(url: String) {
         val activity = wm?.get() ?: return
         val path = Uri.parse(url).encodedPath.orEmpty().trimEnd('/')

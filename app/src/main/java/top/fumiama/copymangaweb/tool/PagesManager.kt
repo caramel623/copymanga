@@ -2,7 +2,6 @@ package top.fumiama.copymangaweb.tool
 
 import android.content.Intent
 import android.widget.Toast
-import top.fumiama.copymangaweb.activity.MainActivity.Companion.wm
 import top.fumiama.copymangaweb.activity.ViewMangaActivity
 import java.io.File
 import java.lang.ref.WeakReference
@@ -34,12 +33,7 @@ class PagesManager(w: WeakReference<ViewMangaActivity>) {
                 val chapterUrl = if(goNext) ViewMangaActivity.nextChapterUrl else ViewMangaActivity.previousChapterUrl
                 if (chapterUrl != null) {
                     if (if(goNext)isEndR else isEndL) {
-                        if(!goNext) ViewMangaActivity.pn = -2
-                        wm?.get()?.mBinding?.w?.apply { post {
-                            loadUrl("javascript:invoke.clickClass(\"comicControlBottomTopClick\",${if(goNext)1 else 0});")
-                        } }
-                        v.tt.canDo = false
-                        v.finish()
+                        v.openOnlineChapter(chapterUrl, goNext)
                     } else doubleTapToast(goNext)
                 } else {
                     val newZipPosition = ViewMangaActivity.zipPosition + (if(goNext) 1 else -1)

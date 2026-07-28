@@ -363,6 +363,67 @@ if (typeof (loaded) == "undefined") {
                 GM.openComicInNewWebView(href);
             }, true);
         },
+        prepareChapterLinks: function () {
+            if (window.cmChapterLinkHandlerInstalled || !GM.shouldInterceptChapterLinks()) return;
+            window.cmChapterLinkHandlerInstalled = true;
+
+            var chapterComponent = function () {
+                var item = document.querySelector(".chapterItem");
+                var component = item && item.__vue__;
+                for (var depth = 0; component && depth < 12; depth++, component = component.$parent) {
+                    if (component.pageData && Array.isArray(component.pageData.list)) return component;
+                }
+                return null;
+            };
+            var chapterUrl = function (pathWord, uuid) {
+                return location.origin + "/comic/" + pathWord + "/chapter/" + uuid;
+            };
+            document.addEventListener("click", function (event) {
+                var item = event.target && event.target.closest ? event.target.closest(".chapterItem") : null;
+                var continueButton = event.target && event.target.closest
+                    ? event.target.closest("button")
+                    : null;
+                if (!item && (!continueButton || !/(續看|继续|繼續|開始閱讀|开始阅读)/.test(continueButton.innerText || ""))) {
+                    return;
+                }
+
+                var component = chapterComponent();
+                if (!component) return;
+                var chapter = null;
+                if (item) {
+                    var list = item.closest(".chapterList");
+                    var items = list ? Array.prototype.filter.call(list.children, function (child) {
+                        return child.classList && child.classList.contains("chapterItem");
+                    }) : [];
+                    var index = items.indexOf(item);
+                    chapter = index >= 0 ? component.pageData.list[index] : null;
+                } else if (component.lastBrowse && component.lastBrowse.chapter_uuid) {
+                    chapter = {
+                        uuid: component.lastBrowse.chapter_uuid,
+                        comic_path_word: component.lastBrowse.path_word,
+                        name: component.lastBrowse.chapter_name,
+                        prev: null,
+                        next: null
+                    };
+                }
+                if (!chapter || !chapter.uuid || !chapter.comic_path_word) return;
+
+                var currentUrl = chapterUrl(chapter.comic_path_word, chapter.uuid);
+                var previousUrl = chapter.prev ? chapterUrl(chapter.comic_path_word, chapter.prev) : "";
+                var nextUrl = chapter.next ? chapterUrl(chapter.comic_path_word, chapter.next) : "";
+                var title = document.querySelector(".headerContentTitle");
+                event.preventDefault();
+                event.stopPropagation();
+                event.stopImmediatePropagation();
+                GM.openChapterInReader(
+                    currentUrl,
+                    chapter.name || "",
+                    title ? title.innerText.trim() : "",
+                    previousUrl,
+                    nextUrl
+                );
+            }, true);
+        },
         prepareNovelLinks: function () {
             if (window.cmNovelLinkHandlerInstalled) return;
             window.cmNovelLinkHandlerInstalled = true;
@@ -447,6 +508,7 @@ if (typeof (loaded) == "undefined") {
         invoke.prepareEncryptedLogin();
         invoke.convertRanobeToTraditional();
         invoke.prepareComicLinks();
+        invoke.prepareChapterLinks();
         invoke.prepareNovelLinks();
         invoke.prepareNovelShelfEntryButton();
         if (url.endsWith("/index")) {

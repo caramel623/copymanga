@@ -43,6 +43,7 @@ class MainActivity: ToolsBoxActivity() {
     private val mViewModel = MainViewModel()
     private var currentSiteUrl = ""
     private var comicWebView: JSWebView? = null
+    private var readerStartedImmediately = false
     private val chapterNavigationStore by lazy { ChapterNavigationStore(this) }
     private var chapterEntryOriginUrl: String? = null
     private var chapterEntryComicSlug: String? = null
@@ -142,6 +143,7 @@ class MainActivity: ToolsBoxActivity() {
             oldWebView.destroy()
         }
         comicWebView = null
+        readerStartedImmediately = false
         mBinding.wh.stopLoading()
         chapterNavigationStore.clear()
         chapterEntryOriginUrl = null
@@ -200,6 +202,16 @@ class MainActivity: ToolsBoxActivity() {
         val comicSlug = selectionPath?.substringAfterLast('/')?.takeIf { it.isNotBlank() }
         visibleWebView().apply { post {
             stopLoading()
+            val visiblePath = Uri.parse(url.orEmpty()).encodedPath.orEmpty().trimEnd('/')
+            val isCurrentSelection = comicSlug != null && (
+                visiblePath == selectionPath?.trimEnd('/') ||
+                    visiblePath.substringAfter("/details/comic/", "") == comicSlug
+                )
+            if (isCurrentSelection) {
+                readerStartedImmediately = false
+                chapterNavigationStore.markReturningToSelection()
+                return@post
+            }
             val history = copyBackForwardList()
             val currentIndex = history.currentIndex
             var targetIndex = -1
@@ -440,15 +452,59 @@ class MainActivity: ToolsBoxActivity() {
         } }
     }
 
+    fun openChapterInReader(
+        chapterUrl: String,
+        chapterName: String,
+        comicName: String,
+        previousChapterUrl: String,
+        nextChapterUrl: String
+    ) {
+        if (!SiteConfig.isAllowed(this, chapterUrl) ||
+            !Uri.parse(chapterUrl).encodedPath.orEmpty().contains("/chapter/")) return
+        runOnUiThread {
+            if (readerStartedImmediately) return@runOnUiThread
+            rememberChapterSelectionUrl(chapterUrl)
+            ViewMangaActivity.titleText = listOf(comicName, chapterName)
+                .filter { it.isNotBlank() }
+                .joinToString(" - ")
+                .ifBlank { chapterName }
+            ViewMangaActivity.previousChapterUrl = previousChapterUrl.takeIf { it.isNotBlank() }
+            ViewMangaActivity.nextChapterUrl = nextChapterUrl.takeIf { it.isNotBlank() }
+            ViewMangaActivity.imgUrls = arrayOf()
+            readerStartedImmediately = true
+            startActivity(Intent(this, ViewMangaActivity::class.java))
+            loadHiddenUrl(chapterUrl)
+        }
+    }
+
+    fun prepareAdjacentChapterInReader(chapterUrl: String, loadingTitle: String): Boolean {
+        if (!SiteConfig.isAllowed(this, chapterUrl) ||
+            !Uri.parse(chapterUrl).encodedPath.orEmpty().contains("/chapter/") ||
+            readerStartedImmediately) return false
+        rememberChapterSelectionUrl(chapterUrl)
+        ViewMangaActivity.titleText = loadingTitle
+        ViewMangaActivity.previousChapterUrl = null
+        ViewMangaActivity.nextChapterUrl = null
+        ViewMangaActivity.imgUrls = arrayOf()
+        readerStartedImmediately = true
+        return true
+    }
+
     fun startViewManga(header: String) {
         val lines = header.split('\n').filter { it.isNotBlank() }
         if (lines.size < 3 || saveUrlsOnly) return
-        ViewMangaActivity.titleText = lines[0].substringBeforeLast(' ')
-        ViewMangaActivity.nextChapterUrl = lines[1].let { if (it == "null") null else it }
-        ViewMangaActivity.previousChapterUrl = lines[2].let { if (it == "null") null else it }
+        ViewMangaActivity.updateOnlineChapterHeader(
+            lines[0].substringBeforeLast(' '),
+            lines[1].let { if (it == "null") null else it },
+            lines[2].let { if (it == "null") null else it }
+        )
         ViewMangaActivity.imgUrls = arrayOf()
         runOnUiThread {
-            startActivity(Intent(this, ViewMangaActivity::class.java))
+            if (readerStartedImmediately) {
+                readerStartedImmediately = false
+            } else {
+                startActivity(Intent(this, ViewMangaActivity::class.java))
+            }
         }
     }
 

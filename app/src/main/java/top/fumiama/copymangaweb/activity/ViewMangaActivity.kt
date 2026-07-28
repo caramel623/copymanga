@@ -430,15 +430,23 @@ class ViewMangaActivity : ToolsBoxActivity() {
         pageNum++
     }
 
+    fun openOnlineChapter(chapterUrl: String, goNext: Boolean) {
+        val main = wm?.get() ?: return
+        val comicTitle = titleText.substringBeforeLast(" - ", titleText)
+        if (!main.prepareAdjacentChapterInReader(chapterUrl, "$comicTitle - 載入中")) return
+        if (!goNext) pn = -2
+        tt.canDo = false
+        startActivity(Intent(this, ViewMangaActivity::class.java))
+        overridePendingTransition(0, 0)
+        main.loadHiddenUrl(chapterUrl)
+        finish()
+        overridePendingTransition(0, 0)
+    }
+
     fun openChapterFromBoundary(goNext: Boolean) {
         val chapterUrl = if (goNext) nextChapterUrl else previousChapterUrl
         if (chapterUrl != null) {
-            if (!goNext) pn = -2
-            tt.canDo = false
-            MainActivity.wm?.get()?.mBinding?.wh?.post {
-                MainActivity.wm?.get()?.mBinding?.wh?.loadUrl(chapterUrl)
-            }
-            finish()
+            openOnlineChapter(chapterUrl, goNext)
             return
         }
         val newPosition = zipPosition + if (goNext) 1 else -1
@@ -480,6 +488,7 @@ class ViewMangaActivity : ToolsBoxActivity() {
     override fun onDestroy() {
         tt.canDo = false
         handler.removeCallbacksAndMessages(null)
+        if (va?.get() === this) va = null
         super.onDestroy()
     }
 
@@ -673,6 +682,16 @@ class ViewMangaActivity : ToolsBoxActivity() {
         var zipList: Array<String>? = null
         var cd: File? = null
         var pn = -1
+
+        @Synchronized
+        fun updateOnlineChapterHeader(title: String, nextUrl: String?, previousUrl: String?) {
+            titleText = title
+            nextChapterUrl = nextUrl
+            previousChapterUrl = previousUrl
+            va?.get()?.takeUnless { it.isFinishing || it.isDestroyed }?.runOnUiThread {
+                va?.get()?.mBinding?.oneinfo?.inftitle?.ttitle?.text = title
+            }
+        }
 
         @Synchronized
         fun appendOnlineImages(urls: Array<String>, finished: Boolean) {
