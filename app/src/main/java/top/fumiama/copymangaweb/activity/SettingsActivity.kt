@@ -7,6 +7,7 @@ import android.widget.Spinner
 import android.widget.Toast
 import android.content.Intent
 import android.net.Uri
+import top.fumiama.copymangaweb.BuildConfig
 import top.fumiama.copymangaweb.R
 import top.fumiama.copymangaweb.databinding.ActivitySettingsBinding
 import top.fumiama.copymangaweb.tool.PropertiesTools
@@ -26,6 +27,7 @@ class SettingsActivity : Activity() {
         super.onCreate(savedInstanceState)
         binding = ActivitySettingsBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        binding.appVersion.text = "目前版本：${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})"
         properties = PropertiesTools(File("$filesDir/settings.properties"))
         binding.siteUrl.setText(SiteConfig.get(this))
         binding.novelApiUrl.setText(NovelConfig.get(this))
@@ -52,7 +54,7 @@ class SettingsActivity : Activity() {
             )
         }
 
-        add(binding.webDarkMode, "webDarkMode", arrayOf("開啟：黑底白字", "關閉：網站原始配色"), arrayOf("true", "false"), "false")
+        add(binding.webDarkMode, "webDarkMode", arrayOf("開啟：深藍底淺色字", "關閉：網站原始配色"), arrayOf("true", "false"), "false")
         add(binding.quality, "quality", arrayOf("原圖", "高 1500px", "中 1000px", "省流 750px"), arrayOf("0", "1500", "1000", "750"), "1500")
         add(binding.preload, "preload", arrayOf("1 張", "3 張", "5 張", "8 張"), arrayOf("1", "3", "5", "8"), "3")
         add(binding.retry, "retry", arrayOf("不重試", "1 次", "2 次", "3 次"), arrayOf("0", "1", "2", "3"), "1")

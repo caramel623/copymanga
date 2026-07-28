@@ -23,19 +23,19 @@ if (typeof (loaded) == "undefined") {
             var style = document.createElement("style");
             style.id = styleId;
             style.textContent = [
-                ":root.cm-web-dark{color-scheme:dark;background:#000!important;}",
-                ":root.cm-web-dark body{background:#000!important;color:#f5f5f5!important;}",
-                ":root.cm-web-dark body *{color:#f5f5f5!important;border-color:#3b3b3b!important;}",
-                ":root.cm-web-dark body div,:root.cm-web-dark body main,:root.cm-web-dark body section,:root.cm-web-dark body article,:root.cm-web-dark body aside,:root.cm-web-dark body header,:root.cm-web-dark body footer,:root.cm-web-dark body nav,:root.cm-web-dark body ul,:root.cm-web-dark body ol,:root.cm-web-dark body li,:root.cm-web-dark body form,:root.cm-web-dark body table,:root.cm-web-dark body thead,:root.cm-web-dark body tbody,:root.cm-web-dark body tr,:root.cm-web-dark body td,:root.cm-web-dark body th{background-color:#000!important;}",
-                ":root.cm-web-dark body *::before,:root.cm-web-dark body *::after{border-color:#3b3b3b!important;}",
+                ":root.cm-web-dark{color-scheme:dark;background:#071522!important;}",
+                ":root.cm-web-dark body{background:#071522!important;color:#f1f5f9!important;}",
+                ":root.cm-web-dark body *{color:#f1f5f9!important;border-color:#294866!important;}",
+                ":root.cm-web-dark body div,:root.cm-web-dark body main,:root.cm-web-dark body section,:root.cm-web-dark body article,:root.cm-web-dark body aside,:root.cm-web-dark body header,:root.cm-web-dark body footer,:root.cm-web-dark body nav,:root.cm-web-dark body ul,:root.cm-web-dark body ol,:root.cm-web-dark body li,:root.cm-web-dark body form,:root.cm-web-dark body table,:root.cm-web-dark body thead,:root.cm-web-dark body tbody,:root.cm-web-dark body tr,:root.cm-web-dark body td,:root.cm-web-dark body th{background-color:#071522!important;}",
+                ":root.cm-web-dark body *::before,:root.cm-web-dark body *::after{border-color:#294866!important;}",
                 ":root.cm-web-dark a,:root.cm-web-dark a *{color:#8ab4f8!important;}",
-                ":root.cm-web-dark input,:root.cm-web-dark textarea,:root.cm-web-dark select,:root.cm-web-dark option,:root.cm-web-dark button,:root.cm-web-dark [role='button'],:root.cm-web-dark [contenteditable='true']{background:#151515!important;color:#fff!important;border-color:#555!important;}",
-                ":root.cm-web-dark input::placeholder,:root.cm-web-dark textarea::placeholder{color:#aaa!important;opacity:1!important;}",
-                ":root.cm-web-dark dialog,:root.cm-web-dark [role='dialog'],:root.cm-web-dark [class*='modal'],:root.cm-web-dark [class*='Modal'],:root.cm-web-dark [class*='popup'],:root.cm-web-dark [class*='Popup'],:root.cm-web-dark [class*='drawer'],:root.cm-web-dark [class*='Drawer']{background:#080808!important;color:#fff!important;border-color:#555!important;}",
-                ":root.cm-web-dark [class*='mask'],:root.cm-web-dark [class*='Mask'],:root.cm-web-dark [class*='overlay'],:root.cm-web-dark [class*='Overlay']{background-color:rgba(0,0,0,.82)!important;}",
-                ":root.cm-web-dark hr{background:#3b3b3b!important;border-color:#3b3b3b!important;}",
+                ":root.cm-web-dark input,:root.cm-web-dark textarea,:root.cm-web-dark select,:root.cm-web-dark option,:root.cm-web-dark button,:root.cm-web-dark [role='button'],:root.cm-web-dark [contenteditable='true']{background:#14304d!important;color:#f1f5f9!important;border-color:#294866!important;}",
+                ":root.cm-web-dark input::placeholder,:root.cm-web-dark textarea::placeholder{color:#b8c7d9!important;opacity:1!important;}",
+                ":root.cm-web-dark dialog,:root.cm-web-dark [role='dialog'],:root.cm-web-dark [class*='modal'],:root.cm-web-dark [class*='Modal'],:root.cm-web-dark [class*='popup'],:root.cm-web-dark [class*='Popup'],:root.cm-web-dark [class*='drawer'],:root.cm-web-dark [class*='Drawer']{background:#0d2238!important;color:#f1f5f9!important;border-color:#294866!important;}",
+                ":root.cm-web-dark [class*='mask'],:root.cm-web-dark [class*='Mask'],:root.cm-web-dark [class*='overlay'],:root.cm-web-dark [class*='Overlay']{background-color:rgba(2,10,18,.86)!important;}",
+                ":root.cm-web-dark hr{background:#294866!important;border-color:#294866!important;}",
                 ":root.cm-web-dark img,:root.cm-web-dark picture,:root.cm-web-dark video,:root.cm-web-dark canvas{filter:none!important;opacity:1!important;}",
-                ":root.cm-web-dark ::selection{background:#ddd!important;color:#000!important;}"
+                ":root.cm-web-dark ::selection{background:#b8c7d9!important;color:#071522!important;}"
             ].join("");
             (document.head || document.documentElement).appendChild(style);
         },
@@ -336,6 +336,33 @@ if (typeof (loaded) == "undefined") {
         },
         resetPreUrl: function () { this.preUrl = ""; },
         loadChapter: function () { this.clickClassCenter("comicContentPopupImageItem", 0); GM.loadComic(location.href); },
+        prepareComicLinks: function () {
+            if (window.cmComicLinkHandlerInstalled || !GM.shouldOpenComicInNewWebView()) return;
+            window.cmComicLinkHandlerInstalled = true;
+            document.addEventListener("click", function (event) {
+                var anchor = event.target && event.target.closest ? event.target.closest("a[href]") : null;
+                var card = event.target && event.target.closest ? event.target.closest(".comicItem") : null;
+                var href = anchor ? (anchor.href || "") : "";
+                var path = "";
+                if (href) {
+                    try { path = new URL(href, location.href).pathname; } catch (_) { return; }
+                }
+                if (path.indexOf("/details/comic/") < 0 && card) {
+                    var image = card.querySelector("img");
+                    var source = image
+                        ? (image.getAttribute("data-src") || image.getAttribute("src") || "")
+                        : "";
+                    var match = source.match(/\/comic\/([^/]+)\/cover\//i) ||
+                        source.match(/\/[a-z0-9]\/([a-z0-9_-]+)\/cover\//i);
+                    if (match) href = location.origin + "/h5/details/comic/" + match[1];
+                }
+                if (!href || (path.indexOf("/details/comic/") < 0 && !card)) return;
+                event.preventDefault();
+                event.stopPropagation();
+                event.stopImmediatePropagation();
+                GM.openComicInNewWebView(href);
+            }, true);
+        },
         prepareNovelLinks: function () {
             if (window.cmNovelLinkHandlerInstalled) return;
             window.cmNovelLinkHandlerInstalled = true;
@@ -419,6 +446,7 @@ if (typeof (loaded) == "undefined") {
         invoke.applyWebDarkMode();
         invoke.prepareEncryptedLogin();
         invoke.convertRanobeToTraditional();
+        invoke.prepareComicLinks();
         invoke.prepareNovelLinks();
         invoke.prepareNovelShelfEntryButton();
         if (url.endsWith("/index")) {

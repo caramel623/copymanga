@@ -7,6 +7,7 @@ import android.net.Uri
 import android.os.Bundle
 import android.os.Looper
 import android.view.View
+import android.view.ViewGroup
 import android.view.WindowManager
 import android.webkit.ValueCallback
 import android.webkit.WebView
@@ -31,6 +32,7 @@ import top.fumiama.copymangaweb.tool.SiteConfig
 import top.fumiama.copymangaweb.web.JS
 import top.fumiama.copymangaweb.web.JSHidden
 import top.fumiama.copymangaweb.web.WebChromeClient
+import top.fumiama.copymangaweb.view.JSWebView
 import java.lang.ref.WeakReference
 import java.io.File
 
@@ -40,6 +42,7 @@ class MainActivity: ToolsBoxActivity() {
     lateinit var mBinding: ActivityMainBinding
     private val mViewModel = MainViewModel()
     private var currentSiteUrl = ""
+    private var comicWebView: JSWebView? = null
     private val chapterNavigationStore by lazy { ChapterNavigationStore(this) }
     private var chapterEntryOriginUrl: String? = null
     private var chapterEntryComicSlug: String? = null
@@ -64,17 +67,27 @@ class MainActivity: ToolsBoxActivity() {
         }
     }
 
-    fun onVisiblePage(pageUrl: String) {
-        mBinding.w.post { handleVisiblePage(pageUrl) }
+    fun onVisiblePage(pageUrl: String, comicWebView: Boolean = false) {
+        mBinding.w.post { handleVisiblePage(pageUrl, comicWebView) }
     }
 
-    fun onVisiblePageStarted(pageUrl: String) {
-        handleVisiblePage(pageUrl)
+    fun onVisiblePageStarted(pageUrl: String, comicWebView: Boolean = false) {
+        handleVisiblePage(pageUrl, comicWebView)
     }
 
-    private fun handleVisiblePage(pageUrl: String) {
+    private fun handleVisiblePage(pageUrl: String, comicWebView: Boolean) {
         val path = Uri.parse(pageUrl).encodedPath.orEmpty().trimEnd('/')
-        if (isOutsideComicFlow(path)) {
+        if (!comicWebView && path.contains("/details/comic/")) {
+            // Some site cards navigate through JavaScript instead of a normal
+            // anchor. Move that navigation to the comic WebView as well.
+            openComicWebView(pageUrl)
+            mBinding.w.post {
+                mBinding.w.stopLoading()
+                if (mBinding.w.canGoBack()) mBinding.w.goBack()
+            }
+            return
+        }
+        if (!comicWebView && isOutsideComicFlow(path)) {
             chapterNavigationStore.clear()
             chapterEntryOriginUrl = null
             chapterEntryComicSlug = null
@@ -85,6 +98,56 @@ class MainActivity: ToolsBoxActivity() {
         } else if (path.contains("/comicContent/") || path.contains("/chapter/")) {
             chapterNavigationStore.recordChapter(pageUrl)
         }
+    }
+
+    fun openComicWebView(url: String) {
+        if (!SiteConfig.isAllowed(this, url)) return
+        runOnUiThread {
+            comicWebView?.let {
+                if (mBinding.comicWebContainer.visibility == View.VISIBLE && it.url == url) {
+                    return@runOnUiThread
+                }
+            }
+            val webView = comicWebView ?: JSWebView(this).apply {
+                layoutParams = ViewGroup.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.MATCH_PARENT
+                )
+                setBackgroundColor(webBackgroundColor())
+                setWebViewClient("i.js", comicWebView = true)
+                webChromeClient = WebChromeClient()
+                loadJSInterface(JS(comicWebView = true))
+                mBinding.comicWebContainer.addView(this)
+                comicWebView = this
+            }
+            webView.stopLoading()
+            webView.clearHistory()
+            webView.loadUrl(url)
+            mBinding.comicWebContainer.visibility = View.VISIBLE
+        }
+    }
+
+    fun visibleWebView(): WebView =
+        comicWebView?.takeIf {
+            mBinding.comicWebContainer.visibility == View.VISIBLE
+        } ?: mBinding.w
+
+    private fun closeComicWebView() {
+        mBinding.comicWebContainer.visibility = View.GONE
+        comicWebView?.let { oldWebView ->
+            oldWebView.stopLoading()
+            oldWebView.loadUrl("about:blank")
+            mBinding.comicWebContainer.removeView(oldWebView)
+            oldWebView.removeAllViews()
+            oldWebView.destroy()
+        }
+        comicWebView = null
+        mBinding.wh.stopLoading()
+        chapterNavigationStore.clear()
+        chapterEntryOriginUrl = null
+        chapterEntryComicSlug = null
+        lastComicSelectionPath = null
+        hideFab()
     }
 
     fun rememberChapterEntryOrigin(selectionUrl: String) {
@@ -122,20 +185,20 @@ class MainActivity: ToolsBoxActivity() {
         val saved = chapterNavigationStore.read()
         val origin = chapterEntryOriginUrl ?: saved.originUrl ?: return false
         val slug = chapterEntryComicSlug ?: saved.comicSlug ?: return false
-        val path = Uri.parse(mBinding.w.url.orEmpty()).encodedPath.orEmpty().trimEnd('/')
+        val path = Uri.parse(visibleWebView().url.orEmpty()).encodedPath.orEmpty().trimEnd('/')
         val isMobileSelection = path.substringAfter("/details/comic/", "")
             .substringBefore('/') == slug
         val isDesktopSelection = path == "/comic/$slug"
         if (!isMobileSelection && !isDesktopSelection) return false
         chapterNavigationStore.markReturningToOrigin()
-        mBinding.w.loadUrl(origin)
+        visibleWebView().loadUrl(origin)
         return true
     }
 
     fun returnToChapterSelection() {
         val selectionPath = lastComicSelectionPath ?: chapterNavigationStore.read().selectionPath
         val comicSlug = selectionPath?.substringAfterLast('/')?.takeIf { it.isNotBlank() }
-        mBinding.w.apply { post {
+        visibleWebView().apply { post {
             stopLoading()
             val history = copyBackForwardList()
             val currentIndex = history.currentIndex
@@ -228,7 +291,8 @@ class MainActivity: ToolsBoxActivity() {
     private fun webDarkModeEnabled(): Boolean =
         PropertiesTools(File("$filesDir/settings.properties"))["webDarkMode"] == "true"
 
-    private fun webBackgroundColor(): Int = if (webDarkModeEnabled()) Color.BLACK else Color.WHITE
+    private fun webBackgroundColor(): Int =
+        if (webDarkModeEnabled()) Color.rgb(7, 21, 34) else Color.WHITE
 
     private fun applyWebDarkMode() {
         mBinding.w.setBackgroundColor(webBackgroundColor())
@@ -236,10 +300,30 @@ class MainActivity: ToolsBoxActivity() {
             "if (typeof invoke !== 'undefined') invoke.applyWebDarkMode();",
             null
         )
+        comicWebView?.let {
+            it.setBackgroundColor(webBackgroundColor())
+            it.evaluateJavascript(
+                "if (typeof invoke !== 'undefined') invoke.applyWebDarkMode();",
+                null
+            )
+        }
     }
 
     @Deprecated("Deprecated in Java")
     override fun onBackPressed() {
+        val activeComicWebView = comicWebView
+        if (activeComicWebView != null &&
+            mBinding.comicWebContainer.visibility == View.VISIBLE) {
+            val comicPath = Uri.parse(activeComicWebView.url.orEmpty()).encodedPath.orEmpty().trimEnd('/')
+            val isChapterSelection = comicPath.contains("/details/comic/") ||
+                (comicPath.startsWith("/comic/") && !comicPath.contains("/chapter/"))
+            if (isChapterSelection || !activeComicWebView.canGoBack()) {
+                closeComicWebView()
+            } else {
+                activeComicWebView.goBack()
+            }
+            return
+        }
         if (returnToChapterEntryOrigin()) return
         if(mBinding.w.canGoBack()) mBinding.w.goBack()
         else super.onBackPressed()

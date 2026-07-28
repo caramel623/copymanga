@@ -18,6 +18,8 @@ class JSWebView : WebView {
         settings.domStorageEnabled = true
         Log.d("MyJSW", "UA is: ${settings.userAgentString}")
     }
-    fun setWebViewClient(jsFileName: String){webViewClient = WebViewClient(context, jsFileName)}
+    fun setWebViewClient(jsFileName: String, comicWebView: Boolean = false) {
+        webViewClient = WebViewClient(context, jsFileName, comicWebView)
+    }
     fun loadJSInterface(obj: Any){addJavascriptInterface(obj, "GM")}
 }

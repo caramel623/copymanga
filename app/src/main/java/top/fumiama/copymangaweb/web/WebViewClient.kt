@@ -17,13 +17,36 @@ import top.fumiama.copymangaweb.R
 import top.fumiama.copymangaweb.tool.SiteConfig
 import top.fumiama.copymangaweb.activity.MainActivity.Companion.wm
 
-class WebViewClient(private val context: Context, private val jsFileName: String):WebViewClient() {
+class WebViewClient(
+    private val context: Context,
+    private val jsFileName: String,
+    private val comicWebView: Boolean = false
+):WebViewClient() {
     private val js = context.assets.open(jsFileName).readBytes().decodeToString()
+    private val role = when {
+        comicWebView -> "comic"
+        jsFileName == "h.js" -> "hidden"
+        else -> "main"
+    }
+
+    override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
+        val url = request?.url?.toString().orEmpty()
+        if (request?.isForMainFrame == true &&
+            !comicWebView &&
+            url.contains("/details/comic/")) {
+            wm?.get()?.openComicWebView(url)
+            return true
+        }
+        return super.shouldOverrideUrlLoading(view, request)
+    }
+
     override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
         super.onPageStarted(view, url, favicon)
-        Log.d("MyWC", "Load URL: $url")
+        Log.d("MyWC", "[$role] Load URL: $url")
         url?.let {
-            if (jsFileName == "i.js") wm?.get()?.onVisiblePageStarted(it)
+            if (jsFileName == "i.js") {
+                wm?.get()?.onVisiblePageStarted(it, comicWebView)
+            }
             if(!SiteConfig.isAllowed(context, it)){
                 view?.goBack()
                 Toast.makeText(context, R.string.blocked_ad, Toast.LENGTH_SHORT).show()
@@ -32,13 +55,15 @@ class WebViewClient(private val context: Context, private val jsFileName: String
     }
 
     override fun onPageFinished(view: WebView?, url: String?) {
-        if (jsFileName == "i.js" && url != null) wm?.get()?.onVisiblePageStarted(url)
+        if (jsFileName == "i.js" && url != null) {
+            wm?.get()?.onVisiblePageStarted(url, comicWebView)
+        }
         wm?.get()?.lifecycleScope?.launch {
             withContext(Dispatchers.IO) {
                 delay(500)
                 withContext(Dispatchers.Main) {
                     view?.loadUrl(js)
-                    Log.d("MyWC", "Inject JS into: $url")
+                    Log.d("MyWC", "[$role] Inject JS into: $url")
                     super.onPageFinished(view, url)
                 }
             }

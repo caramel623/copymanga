@@ -134,10 +134,12 @@ class ViewMangaActivity : ToolsBoxActivity() {
 
     private fun applyReaderAppearance() {
         val dark = p["webDarkMode"] == "true"
-        val background = if (dark) Color.BLACK else Color.WHITE
-        val panel = if (dark) Color.rgb(24, 24, 24) else Color.WHITE
-        val foreground = if (dark) Color.WHITE else Color.BLACK
-        val controlTint = ColorStateList.valueOf(if (dark) Color.rgb(32, 32, 32) else Color.WHITE)
+        val background = if (dark) Color.rgb(7, 21, 34) else Color.WHITE
+        val panel = if (dark) Color.rgb(13, 34, 56) else Color.WHITE
+        val foreground = if (dark) Color.rgb(241, 245, 249) else Color.BLACK
+        val controlTint = ColorStateList.valueOf(
+            if (dark) Color.rgb(20, 48, 77) else Color.WHITE
+        )
 
         listOf(mBinding.vcp, mBinding.vone.root, mBinding.vp, mBinding.vcontinuous).forEach {
             it.setBackgroundColor(background)
@@ -464,7 +466,7 @@ class ViewMangaActivity : ToolsBoxActivity() {
     override fun onBackPressed() {
         tt.canDo = false
         wm?.get()?.let { main ->
-            main.mBinding.w.stopLoading()
+            main.visibleWebView().stopLoading()
             // Reader startup can leave the hidden scanner running while the
             // remaining image URLs are collected.  It must not remain visible
             // after returning to the chapter selection page.
@@ -521,8 +523,8 @@ class ViewMangaActivity : ToolsBoxActivity() {
                         setPadding(0, 12, 0, 12)
                         minHeight = (48 * resources.displayMetrics.density).toInt()
                         if (p["webDarkMode"] == "true") {
-                            setTextColor(Color.WHITE)
-                            backgroundTintList = ColorStateList.valueOf(Color.rgb(32, 32, 32))
+                            setTextColor(Color.rgb(241, 245, 249))
+                            backgroundTintList = ColorStateList.valueOf(Color.rgb(20, 48, 77))
                         }
                     }
                     return ContinuousViewData(button)

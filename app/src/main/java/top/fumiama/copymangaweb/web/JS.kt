@@ -13,7 +13,7 @@ import android.content.Intent
 import top.fumiama.copymangaweb.activity.NovelDetailActivity
 import top.fumiama.copymangaweb.activity.NovelLibraryActivity
 
-class JS {
+class JS(private val comicWebView: Boolean = false) {
     private fun settings() = wm?.get()?.let { PropertiesTools(File("${it.filesDir}/settings.properties")) }
 
     @JavascriptInterface
@@ -95,6 +95,13 @@ class JS {
         wm?.get()?.loadHiddenUrl(u)
     }
     @JavascriptInterface
+    fun shouldOpenComicInNewWebView(): Boolean = !comicWebView
+
+    @JavascriptInterface
+    fun openComicInNewWebView(url: String) {
+        if (!comicWebView) wm?.get()?.openComicWebView(url)
+    }
+    @JavascriptInterface
     fun openNovel(url: String) {
         val activity = wm?.get() ?: return
         val path = Uri.parse(url).encodedPath.orEmpty().trimEnd('/')
@@ -117,7 +124,7 @@ class JS {
     }
     @JavascriptInterface
     fun onVisiblePage(url: String) {
-        wm?.get()?.onVisiblePage(url)
+        wm?.get()?.onVisiblePage(url, comicWebView)
     }
     @JavascriptInterface
     fun hideFab() {
