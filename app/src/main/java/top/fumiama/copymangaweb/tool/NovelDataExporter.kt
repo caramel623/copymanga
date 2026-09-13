@@ -28,6 +28,7 @@ object NovelDataExporter {
                     put("name", item.name)
                     put("lastUpdated", item.lastUpdated)
                     put("addedAt", item.addedAt)
+                    put("cover", item.cover)
                 })
             }
         })
@@ -60,7 +61,8 @@ object NovelDataExporter {
                 slug = item.getString("slug"),
                 name = item.optString("name"),
                 lastUpdated = item.optString("lastUpdated"),
-                addedAt = item.optLong("addedAt")
+                addedAt = item.optLong("addedAt"),
+                cover = item.optString("cover")
             )
         }
         val historyArray = root.getJSONArray("readingHistory")

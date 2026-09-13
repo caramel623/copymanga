@@ -6,6 +6,13 @@ import android.content.res.ColorStateList
 import android.os.Bundle
 import android.view.View
 import android.view.ViewGroup
+import android.view.MotionEvent
+import android.view.ViewConfiguration
+import android.webkit.WebViewClient
+import android.app.AlertDialog
+import android.content.Intent
+import org.json.JSONArray
+import org.json.JSONObject
 import android.webkit.WebView
 import android.widget.*
 import kotlinx.coroutines.*
@@ -23,6 +30,16 @@ class NovelReaderActivity : Activity() {
     private lateinit var webView: WebView
     private lateinit var progress: ProgressBar
     private lateinit var toolbar: LinearLayout
+    private lateinit var bottomBar: LinearLayout
+    private lateinit var seek: SeekBar
+    private lateinit var positionLabel: TextView
+    private var seeking = false
+    private var ready = false
+    private var downX = 0f
+    private var downY = 0f
+    private var downTime = 0L
+    private var moved = false
+    private var pendingY: Int? = null
     private lateinit var properties: PropertiesTools
     private var loadedHtml: Pair<String, String>? = null
     private val slug by lazy { intent.getStringExtra(EXTRA_SLUG).orEmpty() }
@@ -35,7 +52,6 @@ class NovelReaderActivity : Activity() {
         properties = PropertiesTools(File("$filesDir/settings.properties"))
         root = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         toolbar = createToolbar()
-        root.addView(toolbar)
         progress = ProgressBar(this).apply { isIndeterminate = true }
         root.addView(progress, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { gravity = android.view.Gravity.CENTER })
         textView = TextView(this).apply { setPadding(42, 32, 42, 72); setTextIsSelectable(true) }
@@ -43,7 +59,39 @@ class NovelReaderActivity : Activity() {
         webView = WebView(this).apply { visibility = View.GONE; settings.javaScriptEnabled = false; settings.builtInZoomControls = true; settings.displayZoomControls = false }
         root.addView(scroll, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
         root.addView(webView, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
-        setContentView(root)
+        bottomBar = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        val bookmarks = LinearLayout(this)
+        bookmarks.addView(Button(this).apply { text = "加入書籤"; setOnClickListener { addBookmark() } }, LinearLayout.LayoutParams(0, -2, 1f))
+        bookmarks.addView(Button(this).apply { text = "書籤列表"; setOnClickListener { showBookmarks() } }, LinearLayout.LayoutParams(0, -2, 1f))
+        bottomBar.addView(bookmarks)
+        positionLabel = TextView(this).apply { gravity = android.view.Gravity.CENTER }
+        bottomBar.addView(positionLabel)
+        seek = SeekBar(this).apply {
+            max = 1000; isEnabled = false
+            contentDescription = "本卷閱讀進度"
+            setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+                override fun onStartTrackingTouch(bar: SeekBar?) { seeking = true }
+                override fun onProgressChanged(bar: SeekBar?, value: Int, fromUser: Boolean) {
+                    if (fromUser) { positionLabel.text = "本卷 ${value / 10f}%"; jumpTo((maxScroll() * value / 1000f).toInt()) }
+                }
+                override fun onStopTrackingTouch(bar: SeekBar?) { seeking = false; updateProgress() }
+            })
+        }
+        bottomBar.addView(seek)
+        toolbar.visibility = View.GONE; bottomBar.visibility = View.GONE
+        scroll.setOnScrollChangeListener { _, _, _, _, _ -> updateProgress() }
+        webView.setOnScrollChangeListener { _, _, _, _, _ -> updateProgress() }
+        textView.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> updateProgress() }
+        webView.webViewClient = object : WebViewClient() {
+            override fun onPageFinished(view: WebView, url: String?) {
+                view.post { pendingY?.let { view.scrollTo(0, it); pendingY = null }; updateProgress() }
+            }
+        }
+        setContentView(FrameLayout(this).apply {
+            addView(root, FrameLayout.LayoutParams(-1, -1))
+            addView(toolbar, FrameLayout.LayoutParams(-1, -2, android.view.Gravity.TOP))
+            addView(bottomBar, FrameLayout.LayoutParams(-1, -2, android.view.Gravity.BOTTOM))
+        })
         applyAppearance()
         load()
     }
@@ -70,24 +118,27 @@ class NovelReaderActivity : Activity() {
             val body = withContext(Dispatchers.Default) { toTraditionalIfEnabled(originalBody) }
             val trimmed = body.trimStart()
             val isHtml = contentType.contains("html") || trimmed.startsWith("<!doctype", true) || trimmed.startsWith("<html", true)
-            val savedY = NovelReadingStore(this@NovelReaderActivity).find(slug)?.takeIf { it.volumeId == volumeId }?.scrollY ?: 0
+            ready = true; seek.isEnabled = true
+            val savedY = if (intent.hasExtra("bookmark_y")) intent.getIntExtra("bookmark_y", 0) else NovelReadingStore(this@NovelReaderActivity).find(slug)?.takeIf { it.volumeId == volumeId }?.scrollY ?: 0
             if (isHtml) {
                 webView.visibility = View.VISIBLE
                 loadedHtml = metadata.address to body
+                pendingY = savedY
                 loadStyledHtml()
-                webView.postDelayed({ webView.scrollTo(0, savedY) }, 600)
             } else {
                 scroll.visibility = View.VISIBLE
                 textView.text = body.replace("\r\n", "\n")
-                scroll.post { scroll.scrollTo(0, savedY) }
+                scroll.post { scroll.scrollTo(0, savedY); updateProgress() }
             }
         }.onFailure { progress.visibility = View.GONE; Toast.makeText(this@NovelReaderActivity, "載入正文失敗：${it.message}", Toast.LENGTH_LONG).show() }
     }
 
     private fun adjustNumber(key: String, delta: Float, min: Float, max: Float) {
+        val fraction = if (maxScroll() > 0) currentY().toFloat() / maxScroll() else 0f
         val fallback = if (key == "novelFontSize") 19f else 1.5f
         val value = ((properties[key].toFloatOrNull() ?: fallback) + delta).coerceIn(min, max)
         properties[key] = value.toString(); applyAppearance()
+        if (scroll.visibility == View.VISIBLE) scroll.post { jumpTo((maxScroll() * fraction).toInt()); updateProgress() }
     }
 
     private fun cycleTheme() {
@@ -107,13 +158,20 @@ class NovelReaderActivity : Activity() {
         root.setBackgroundColor(background); scroll.setBackgroundColor(background); webView.setBackgroundColor(background)
         textView.setTextColor(foreground); textView.textSize = font; textView.setLineSpacing(0f, spacing)
         toolbar.setBackgroundColor(background)
+        bottomBar.setBackgroundColor(background)
+        positionLabel.setTextColor(foreground)
+        fun tint(view: View) {
+            if (view is Button) { view.setTextColor(foreground); view.backgroundTintList = ColorStateList.valueOf(controlBackground) }
+            if (view is ViewGroup) for (i in 0 until view.childCount) tint(view.getChildAt(i))
+        }
+        tint(bottomBar)
         for (index in 0 until toolbar.childCount) {
             (toolbar.getChildAt(index) as? Button)?.apply {
                 setTextColor(foreground)
                 backgroundTintList = ColorStateList.valueOf(controlBackground)
             }
         }
-        if (webView.visibility == View.VISIBLE) loadStyledHtml()
+        if (webView.visibility == View.VISIBLE) { pendingY = webView.scrollY; loadStyledHtml() }
     }
 
     private fun loadStyledHtml() {
@@ -146,7 +204,78 @@ class NovelReaderActivity : Activity() {
             ::scroll.isInitialized -> scroll.scrollY
             else -> 0
         }
-        NovelReadingStore(this).save(NovelReadingRecord(slug, bookName, volumeId, volumeName, y, System.currentTimeMillis()))
+        if (ready) NovelReadingStore(this).save(NovelReadingRecord(slug, bookName, volumeId, volumeName, y, System.currentTimeMillis()))
+    }
+
+    private fun currentY() = if (webView.visibility == View.VISIBLE) webView.scrollY else scroll.scrollY
+    private fun maxScroll(): Int = if (webView.visibility == View.VISIBLE)
+        (webView.contentHeight * webView.scale - webView.height).toInt().coerceAtLeast(0)
+        else (textView.height - scroll.height).coerceAtLeast(0)
+    private fun jumpTo(y: Int) {
+        if (webView.visibility == View.VISIBLE) webView.scrollTo(0, y.coerceIn(0, maxScroll()))
+        else scroll.scrollTo(0, y.coerceIn(0, maxScroll()))
+    }
+    private fun updateProgress() {
+        if (!seeking && ::seek.isInitialized) {
+            seek.progress = if (maxScroll() == 0) 0 else (currentY().toLong() * 1000 / maxScroll()).toInt().coerceIn(0, 1000)
+            positionLabel.text = "本卷 ${seek.progress / 10f}%"
+        }
+    }
+
+    override fun dispatchTouchEvent(event: MotionEvent): Boolean {
+        when (event.actionMasked) {
+            MotionEvent.ACTION_DOWN -> { downX = event.x; downY = event.y; downTime = event.eventTime; moved = false }
+            MotionEvent.ACTION_POINTER_DOWN -> moved = true
+            MotionEvent.ACTION_MOVE -> if (kotlin.math.abs(event.x - downX) > ViewConfiguration.get(this).scaledTouchSlop || kotlin.math.abs(event.y - downY) > ViewConfiguration.get(this).scaledTouchSlop) moved = true
+            MotionEvent.ACTION_UP -> {
+                val bounds = android.graphics.Rect()
+                val reader = if (webView.visibility == View.VISIBLE) webView else scroll
+                reader.getGlobalVisibleRect(bounds)
+                if (ready && !moved && event.eventTime - downTime < ViewConfiguration.getLongPressTimeout() &&
+                    event.rawX > bounds.left + bounds.width() / 3 && event.rawX < bounds.right - bounds.width() / 3 &&
+                    event.rawY > bounds.top + bounds.height() / 3 && event.rawY < bounds.bottom - bounds.height() / 3) {
+                    val cancel = MotionEvent.obtain(event).apply { action = MotionEvent.ACTION_CANCEL }
+                    super.dispatchTouchEvent(cancel); cancel.recycle()
+                    val visibility = if (toolbar.visibility == View.VISIBLE) View.GONE else View.VISIBLE
+                    toolbar.visibility = visibility; bottomBar.visibility = visibility
+                    reader.post { updateProgress() }
+                    return true
+                }
+            }
+        }
+        return super.dispatchTouchEvent(event)
+    }
+
+    private fun bookmarkPrefs() = getSharedPreferences("novel_bookmarks", MODE_PRIVATE)
+    private fun bookmarks(): JSONArray = runCatching { JSONArray(bookmarkPrefs().getString(slug, "[]")) }.getOrElse { JSONArray() }
+    private fun addBookmark() {
+        if (!ready) return
+        val y = currentY()
+        val input = EditText(this).apply { setText("$volumeName · ${seek.progress / 10f}%") }
+        AlertDialog.Builder(this).setTitle("新增書籤").setView(input).setNegativeButton("取消", null)
+            .setPositiveButton("儲存") { _, _ ->
+                val items = bookmarks().put(JSONObject().put("volumeId", volumeId).put("volumeName", volumeName).put("y", y).put("name", input.text.toString()))
+                bookmarkPrefs().edit().putString(slug, items.toString()).apply()
+                Toast.makeText(this, "已儲存書籤", Toast.LENGTH_SHORT).show()
+            }.show()
+    }
+    private fun showBookmarks() {
+        val items = bookmarks()
+        if (items.length() == 0) { Toast.makeText(this, "這本小說尚無書籤", Toast.LENGTH_SHORT).show(); return }
+        AlertDialog.Builder(this).setTitle("${bookName} 書籤")
+            .setItems(Array(items.length()) { items.getJSONObject(it).optString("name") }) { _, index ->
+                val item = items.getJSONObject(index)
+                AlertDialog.Builder(this).setTitle(item.optString("name")).setNegativeButton("取消", null)
+                    .setNeutralButton("刪除") { _, _ -> items.remove(index); bookmarkPrefs().edit().putString(slug, items.toString()).apply() }
+                    .setPositiveButton("前往") { _, _ ->
+                        if (item.getString("volumeId") == volumeId) jumpTo(item.optInt("y"))
+                        else {
+                            startActivity(Intent(this, NovelReaderActivity::class.java).putExtra(EXTRA_SLUG, slug).putExtra(EXTRA_BOOK_NAME, bookName)
+                                .putExtra(EXTRA_VOLUME_ID, item.getString("volumeId")).putExtra(EXTRA_VOLUME_NAME, item.optString("volumeName")).putExtra("bookmark_y", item.optInt("y")))
+                            finish()
+                        }
+                    }.show()
+            }.show()
     }
 
     override fun onDestroy() { scope.cancel(); webView.destroy(); super.onDestroy() }

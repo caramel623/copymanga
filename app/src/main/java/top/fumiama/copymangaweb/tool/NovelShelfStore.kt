@@ -9,7 +9,8 @@ data class NovelShelfRecord(
     val slug: String,
     val name: String,
     val lastUpdated: String,
-    val addedAt: Long
+    val addedAt: Long,
+    val cover: String = ""
 )
 
 class NovelShelfStore(context: Context) {
@@ -24,13 +25,18 @@ class NovelShelfStore(context: Context) {
                 val item = array.getJSONObject(index)
                 NovelShelfRecord(
                     item.getString("slug"), item.optString("name"),
-                    item.optString("lastUpdated"), item.optLong("addedAt")
+                    item.optString("lastUpdated"), item.optLong("addedAt"), item.optString("cover")
                 )
             }.sortedByDescending { it.addedAt }
         }.getOrDefault(emptyList())
     }
 
     fun contains(slug: String): Boolean = list().any { it.slug == slug }
+
+    @Synchronized
+    fun updateMetadata(slug: String, name: String, updated: String, cover: String) {
+        write(list().map { if (it.slug == slug) it.copy(name = name, lastUpdated = updated, cover = cover) else it })
+    }
 
     @Synchronized
     fun add(record: NovelShelfRecord) {
@@ -47,6 +53,7 @@ class NovelShelfStore(context: Context) {
             array.put(JSONObject().apply {
                 put("slug", item.slug); put("name", item.name)
                 put("lastUpdated", item.lastUpdated); put("addedAt", item.addedAt)
+                put("cover", item.cover)
             })
         }
         file.writeText(array.toString())

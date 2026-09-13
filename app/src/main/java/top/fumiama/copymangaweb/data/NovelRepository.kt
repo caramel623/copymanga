@@ -6,7 +6,7 @@ import top.fumiama.copymangaweb.tool.NovelConfig
 import java.net.HttpURLConnection
 import java.net.URL
 
-data class NovelBook(val name: String, val slug: String, val author: String, val brief: String, val lastUpdated: String)
+data class NovelBook(val name: String, val slug: String, val author: String, val brief: String, val lastUpdated: String, val cover: String = "")
 data class NovelVolume(val id: String, val name: String, val previousId: String?, val nextId: String?)
 data class NovelContent(val book: NovelBook, val volume: NovelVolume, val address: String, val encoding: String)
 
@@ -22,7 +22,10 @@ class NovelRepository(private val context: Context) {
             book.optString("path_word", slug),
             authors?.optJSONObject(0)?.optString("name").orEmpty(),
             book.optString("brief"),
-            book.optString("datetime_updated")
+            book.optString("datetime_updated"),
+            book.optString("cover").takeUnless { it == "null" }.orEmpty().let {
+                if (it.isBlank()) "" else URL(URL(base), it).toString()
+            }
         )
     }
 

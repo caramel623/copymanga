@@ -150,6 +150,7 @@ class NovelDetailActivity : Activity() {
     }
 
     private fun render(book: NovelBook, volumes: List<NovelVolume>) {
+        NovelShelfStore(this).updateMetadata(book.slug, book.name, book.lastUpdated, book.cover)
         content.removeAllViews()
         content.addView(createBookCard(book))
 
@@ -187,6 +188,12 @@ class NovelDetailActivity : Activity() {
         background = roundedBackground(palette.surface, dp(14).toFloat(), palette.outline, dp(1))
         elevation = if (appliedTheme == "light") dp(1).toFloat() else 0f
 
+        addView(android.widget.ImageView(this@NovelDetailActivity).apply {
+            contentDescription = "${book.name} 封面"
+            scaleType = android.widget.ImageView.ScaleType.CENTER_CROP
+            com.bumptech.glide.Glide.with(this@NovelDetailActivity).load(book.cover.ifBlank { null })
+                .placeholder(android.R.drawable.ic_menu_gallery).error(android.R.drawable.ic_menu_gallery).into(this)
+        }, LinearLayout.LayoutParams(dp(100), dp(145)).apply { bottomMargin = dp(12) })
         addView(text(book.name, 23f, palette.primaryText, bold = true).apply {
             setLineSpacing(0f, 1.08f)
         })
@@ -227,7 +234,7 @@ class NovelDetailActivity : Activity() {
         setOnClickListener {
             val shelf = NovelShelfStore(this@NovelDetailActivity)
             if (shelf.contains(book.slug)) shelf.remove(book.slug)
-            else shelf.add(NovelShelfRecord(book.slug, book.name, book.lastUpdated, System.currentTimeMillis()))
+            else shelf.add(NovelShelfRecord(book.slug, book.name, book.lastUpdated, System.currentTimeMillis(), book.cover))
             updateShelfButton(this, book.slug)
         }
     }
