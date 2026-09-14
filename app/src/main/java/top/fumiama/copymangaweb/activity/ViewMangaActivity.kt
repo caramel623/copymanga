@@ -438,6 +438,7 @@ class ViewMangaActivity : ToolsBoxActivity() {
         tt.canDo = false
         startActivity(Intent(this, ViewMangaActivity::class.java))
         overridePendingTransition(0, 0)
+        main.silentLoadChapter(chapterUrl)
         main.loadHiddenUrl(chapterUrl)
         finish()
         overridePendingTransition(0, 0)
@@ -479,6 +480,7 @@ class ViewMangaActivity : ToolsBoxActivity() {
             // remaining image URLs are collected.  It must not remain visible
             // after returning to the chapter selection page.
             main.mBinding.wh.stopLoading()
+            main.releaseSilentLoad()
             MainActivity.mh?.sendEmptyMessage(MainHandler.HIDE_LOADING_DIALOG)
             main.returnToChapterSelection()
         }

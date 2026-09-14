@@ -5,7 +5,9 @@ import android.content.Intent
 import android.graphics.Color
 import android.net.Uri
 import android.os.Bundle
+import android.os.Handler
 import android.os.Looper
+import android.webkit.WebViewClient
 import android.view.View
 import android.view.ViewGroup
 import android.view.WindowManager
@@ -51,6 +53,11 @@ class MainActivity: ToolsBoxActivity() {
     // The host may be changed in Settings while reading, so retain only the
     // comic page path and resolve it against the current configured entry.
     var lastComicSelectionPath: String? = null
+
+    private var silentWebView: JSWebView? = null
+    private var silentChapterUuid: String? = null
+    private val silentCloseHandler = Handler(Looper.getMainLooper())
+    private val silentCloseRunnable = Runnable { closeSilentWebViewInternal() }
 
     fun lastComicSelectionUrl(): String? {
         val saved = chapterNavigationStore.read()
@@ -300,6 +307,11 @@ class MainActivity: ToolsBoxActivity() {
         }
     }
 
+    override fun onDestroy() {
+        releaseSilentLoad()
+        super.onDestroy()
+    }
+
     private fun webDarkModeEnabled(): Boolean =
         PropertiesTools(File("$filesDir/settings.properties"))["webDarkMode"] == "true"
 
@@ -380,6 +392,66 @@ class MainActivity: ToolsBoxActivity() {
 
     fun loadHiddenUrl(u: String) {
         mBinding.wh.apply { post { loadUrl(u) } }
+    }
+
+    // Opens the real chapter page in a hidden WebView so the site can record
+    // the chapter as read. It closes itself ~4s after the page finishes.
+    fun silentLoadChapter(chapterUrl: String) {
+        if (!Uri.parse(chapterUrl).encodedPath.orEmpty().contains("/chapter/")) return
+        val uuid = chapterUrl.substringAfterLast('/')
+        runOnUiThread {
+            mBinding.root.post {
+                if (silentWebView != null && uuid == silentChapterUuid) return@post
+                silentCloseHandler.removeCallbacks(silentCloseRunnable)
+                closeSilentWebViewInternal()
+                val webView = JSWebView(this).apply {
+                    layoutParams = ViewGroup.LayoutParams(1, 1)
+                    visibility = View.INVISIBLE
+                    isClickable = false
+                    isFocusable = false
+                    isFocusableInTouchMode = false
+                    isLongClickable = false
+                    isHorizontalScrollBarEnabled = false
+                    isVerticalScrollBarEnabled = false
+                    webChromeClient = object : android.webkit.WebChromeClient() {
+                        override fun onProgressChanged(view: WebView?, newProgress: Int) {
+                            super.onProgressChanged(view, newProgress)
+                        }
+                    }
+                    webViewClient = object : WebViewClient() {
+                        override fun onPageFinished(view: WebView?, url: String?) {
+                            super.onPageFinished(view, url)
+                            if (url == null || !url.contains("/chapter/")) return
+                            if (!SiteConfig.isAllowed(this@MainActivity, url)) return
+                            if (view !== silentWebView) return
+                            silentCloseHandler.removeCallbacks(silentCloseRunnable)
+                            silentCloseHandler.postDelayed(silentCloseRunnable, 4000)
+                        }
+                    }
+                    (mBinding.root as ViewGroup).addView(this)
+                    silentWebView = this
+                    silentChapterUuid = uuid
+                    loadUrl(chapterUrl)
+                }
+            }
+        }
+    }
+
+    fun releaseSilentLoad() {
+        runOnUiThread {
+            silentCloseHandler.removeCallbacks(silentCloseRunnable)
+            closeSilentWebViewInternal()
+        }
+    }
+
+    private fun closeSilentWebViewInternal() {
+        silentWebView?.let { webView ->
+            webView.stopLoading()
+            (mBinding.root as ViewGroup).removeView(webView)
+            webView.destroy()
+        }
+        silentWebView = null
+        silentChapterUuid = null
     }
 
     fun updateLoadProgress(p: Int) {
@@ -473,6 +545,7 @@ class MainActivity: ToolsBoxActivity() {
             ViewMangaActivity.imgUrls = arrayOf()
             readerStartedImmediately = true
             startActivity(Intent(this, ViewMangaActivity::class.java))
+            silentLoadChapter(chapterUrl)
             loadHiddenUrl(chapterUrl)
         }
     }
