@@ -58,6 +58,7 @@ class MainActivity: ToolsBoxActivity() {
     private var silentChapterUuid: String? = null
     private val silentCloseHandler = Handler(Looper.getMainLooper())
     private val silentCloseRunnable = Runnable { closeSilentWebViewInternal() }
+    private val silentWatchdog = Runnable { closeSilentWebViewInternal() }
 
     fun lastComicSelectionUrl(): String? {
         val saved = chapterNavigationStore.read()
@@ -432,6 +433,8 @@ class MainActivity: ToolsBoxActivity() {
                     silentWebView = this
                     silentChapterUuid = uuid
                     loadUrl(chapterUrl)
+                    silentCloseHandler.removeCallbacks(silentWatchdog)
+                    silentCloseHandler.postDelayed(silentWatchdog, 15000)
                 }
             }
         }
@@ -445,6 +448,8 @@ class MainActivity: ToolsBoxActivity() {
     }
 
     private fun closeSilentWebViewInternal() {
+        silentCloseHandler.removeCallbacks(silentCloseRunnable)
+        silentCloseHandler.removeCallbacks(silentWatchdog)
         silentWebView?.let { webView ->
             webView.stopLoading()
             (mBinding.root as ViewGroup).removeView(webView)
