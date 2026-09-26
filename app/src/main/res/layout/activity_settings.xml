@@ -69,10 +69,14 @@
         <Spinner android:id="@+id/displayMode" android:layout_width="match_parent" android:layout_height="48dp" />
         <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="滑頁方向" />
         <Spinner android:id="@+id/pageOrientation" android:layout_width="match_parent" android:layout_height="48dp" />
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="漫畫閱讀器縮小（不擋狀態/底部列）" />
+        <Spinner android:id="@+id/mangaAvoidBars" android:layout_width="match_parent" android:layout_height="48dp" />
         <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="自製輕小說頁面配色" />
         <Spinner android:id="@+id/novelTheme" android:layout_width="match_parent" android:layout_height="48dp" />
         <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="輕小說繁簡轉換" />
         <Spinner android:id="@+id/ranobeTraditional" android:layout_width="match_parent" android:layout_height="48dp" />
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="小說閱讀器縮小（不擋狀態/底部列）" />
+        <Spinner android:id="@+id/novelAvoidBars" android:layout_width="match_parent" android:layout_height="48dp" />
         <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="20dp" android:text="下載設定" android:textSize="18sp" android:textStyle="bold" />
         <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="下載位置" />
         <TextView android:id="@+id/downloadLocation" android:layout_width="match_parent" android:layout_height="wrap_content" android:padding="8dp" />

@@ -62,6 +62,7 @@ class SettingsActivity : Activity() {
         add(binding.direction, "r2l", arrayOf("由右至左", "由左至右"), arrayOf("true", "false"), "true")
         add(binding.displayMode, "noAnimation", arrayOf("單頁無動畫", "滑頁動畫"), arrayOf("true", "false"), "true")
         add(binding.pageOrientation, "vertical", arrayOf("上下滑頁", "左右滑頁"), arrayOf("true", "false"), "true")
+        add(binding.mangaAvoidBars, "mangaAvoidBars", arrayOf("關閉：全螢幕沉浸", "開啟：縮小不擋狀態/底部列"), arrayOf("false", "true"), "false")
         add(
             binding.novelTheme,
             "novelTheme",
@@ -70,6 +71,7 @@ class SettingsActivity : Activity() {
             "light"
         )
         add(binding.ranobeTraditional, "ranobeTraditional", arrayOf("開啟：簡體轉繁體", "關閉：保留原文"), arrayOf("true", "false"), "true")
+        add(binding.novelAvoidBars, "novelAvoidBars", arrayOf("開啟：縮小不擋狀態/底部列", "關閉：全螢幕沉浸"), arrayOf("true", "false"), "true")
         add(binding.loadSpeed, "loadSpeed", arrayOf("慢", "標準", "快"), arrayOf("160", "320", "640"), "320")
         add(binding.downloadBatchSize, "downloadBatchSize", arrayOf("1 張", "2 張", "3 張", "4 張", "5 張"), arrayOf("1", "2", "3", "4", "5"), "5")
         add(binding.compressZip, "compressZip", arrayOf("每個章節壓縮成單一 ZIP", "儲存為未壓縮圖片"), arrayOf("true", "false"), "true")

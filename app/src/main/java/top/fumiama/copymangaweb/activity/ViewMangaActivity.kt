@@ -31,6 +31,7 @@ import top.fumiama.copymangaweb.activity.template.ToolsBoxActivity
 import top.fumiama.copymangaweb.databinding.ActivityViewmangaBinding
 import top.fumiama.copymangaweb.handler.MainHandler
 import top.fumiama.copymangaweb.handler.TimeThread
+import top.fumiama.copymangaweb.tool.InsetsTools
 import top.fumiama.copymangaweb.tool.PropertiesTools
 import top.fumiama.copymangaweb.tool.PagesManager
 import top.fumiama.copymangaweb.tool.ToolsBox
@@ -193,9 +194,31 @@ class ViewMangaActivity : ToolsBoxActivity() {
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {
         super.onWindowFocusChanged(hasFocus)
-        window.decorView.systemUiVisibility =
-            View.SYSTEM_UI_FLAG_LAYOUT_STABLE or View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION or View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or View.SYSTEM_UI_FLAG_FULLSCREEN or View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
-        if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) window.setDecorFitsSystemWindows(false)
+        applyReaderSystemUi()
+    }
+
+    private fun applyReaderSystemUi() {
+        if (p["mangaAvoidBars"] == "true") {
+            window.decorView.systemUiVisibility = lightBarFlags()
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) window.setDecorFitsSystemWindows(true)
+            InsetsTools.applyReaderContentInsets(this, mBinding.vcp)
+        } else {
+            window.decorView.systemUiVisibility = lightBarFlags() or InsetsTools.immersiveSystemUiFlags()
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) window.setDecorFitsSystemWindows(false)
+            InsetsTools.clearReaderContentInsets(this, mBinding.vcp)
+        }
+    }
+
+    private fun lightBarFlags(): Int {
+        val dark = p["webDarkMode"] == "true"
+        var flags = 0
+        flags = if (dark) flags and View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR.inv()
+        else flags or View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            flags = if (dark) flags and View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR.inv()
+            else flags or View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR
+        }
+        return flags
     }
 
     override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {

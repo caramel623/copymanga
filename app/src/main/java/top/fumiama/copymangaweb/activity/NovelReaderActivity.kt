@@ -8,6 +8,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.view.MotionEvent
 import android.view.ViewConfiguration
+import top.fumiama.copymangaweb.tool.InsetsTools
 import android.webkit.WebViewClient
 import android.app.AlertDialog
 import android.content.Intent
@@ -93,7 +94,37 @@ class NovelReaderActivity : Activity() {
             addView(bottomBar, FrameLayout.LayoutParams(-1, -2, android.view.Gravity.BOTTOM))
         })
         applyAppearance()
+        applyAvoidBars()
         load()
+    }
+
+    private fun readerBarFlags(): Int {
+        val dark = properties["novelTheme"] != "light"
+        var flags = 0
+        flags = if (dark) flags and View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR.inv() else flags or View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            flags = if (dark) flags and View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR.inv() else flags or View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR
+        }
+        return flags
+    }
+
+    private fun applyAvoidBars() {
+        val barBackground = when (properties["novelTheme"]) {
+            "dark" -> Color.rgb(38, 38, 38)
+            "black" -> Color.BLACK
+            else -> Color.rgb(250, 247, 238)
+        }
+        window.statusBarColor = barBackground
+        window.navigationBarColor = barBackground
+        if (properties["novelAvoidBars"] != "false") {
+            window.decorView.systemUiVisibility = readerBarFlags()
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) window.setDecorFitsSystemWindows(false)
+            InsetsTools.applyReaderContentInsets(this, root, toolbar, bottomBar)
+        } else {
+            window.decorView.systemUiVisibility = readerBarFlags()
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) window.setDecorFitsSystemWindows(false)
+            InsetsTools.clearReaderContentInsets(this, root, toolbar, bottomBar)
+        }
     }
 
     private fun createToolbar(): LinearLayout = LinearLayout(this).apply {
@@ -145,6 +176,7 @@ class NovelReaderActivity : Activity() {
         val themes = listOf("light", "dark", "black")
         properties["novelTheme"] = themes[(themes.indexOf(properties["novelTheme"]).coerceAtLeast(0) + 1) % themes.size]
         applyAppearance()
+        applyAvoidBars()
     }
 
     private fun applyAppearance() {
