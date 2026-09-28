@@ -7,7 +7,6 @@ import android.os.Bundle
 import android.os.Looper
 import android.view.View
 import android.view.ViewGroup
-import android.view.ViewTreeObserver
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
@@ -22,6 +21,7 @@ import top.fumiama.copymangaweb.handler.DlHandler
 import top.fumiama.copymangaweb.tool.InsetsTools
 import top.fumiama.copymangaweb.tool.MangaDlTools
 import top.fumiama.copymangaweb.tool.MangaDlTools.Companion.wmdlt
+import top.fumiama.copymangaweb.tool.SetDraggable
 import top.fumiama.copymangaweb.view.ChapterToggleButton
 import top.fumiama.copymangaweb.view.LazyScrollView
 import top.fumiama.copymangaweb.web.JSHidden
@@ -43,7 +43,6 @@ class DlActivity : ToolsBoxActivity() {
     var tbtnlist: Array<ChapterToggleButton> = arrayOf()
     private val handler = DlHandler(this, Looper.myLooper()!!)
     private var btnw = 0
-    private var cdwnWidth = 0
     private var canDl = false
     private lateinit var mangaDlTools: MangaDlTools
     var multiSelect = false
@@ -77,28 +76,6 @@ class DlActivity : ToolsBoxActivity() {
     override fun onResume() {
         super.onResume()
         if (::mangaDlTools.isInitialized && tbtnlist.isNotEmpty()) resumePendingDownloads()
-    }
-
-    private fun showDlCard() {
-        ObjectAnimator.ofFloat(
-            mBinding.dldlbar.csdwn,
-            "translationX",
-            cdwnWidth.toFloat() * 0.9f,
-            0f
-        ).setDuration(
-            233
-        ).start()
-    }
-
-    private fun hideDlCard() {
-        ObjectAnimator.ofFloat(
-            mBinding.dldlbar.csdwn,
-            "translationX",
-            0f,
-            cdwnWidth.toFloat() * 0.9f
-        ).setDuration(
-            233
-        ).start()
     }
 
     private fun fillChapters(): Boolean {
@@ -142,20 +119,13 @@ class DlActivity : ToolsBoxActivity() {
         val widthData = toolsBox.calcWidthFromDp(8, 64)
         btnNumPerRow = widthData[0]
         btnw = widthData[1]
-        mBinding.dldlbar.csdwn.apply { post { viewTreeObserver.addOnGlobalLayoutListener(object :
-            ViewTreeObserver.OnGlobalLayoutListener {
-            override fun onGlobalLayout() {
-                cdwnWidth = width
-                viewTreeObserver.removeOnGlobalLayoutListener(this)
-            }
-        }) } }
         mBinding.dllazys.onScrollListener = object : LazyScrollView.OnScrollListener {
             override fun onBottom() {}
             override fun onScroll() {}
             override fun onTop() {}
         }
         mBinding.dldlbar.cdwn.let { it.post {
-            mBinding.dldlbar.csdwn.translationX = 0f
+            SetDraggable().with(this).onto(it)
             it.setOnClickListener {
                 if (checkedChapter == 0)
                     return@setOnClickListener
