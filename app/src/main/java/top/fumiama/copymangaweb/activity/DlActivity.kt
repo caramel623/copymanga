@@ -18,6 +18,7 @@ import top.fumiama.copymangaweb.activity.template.ToolsBoxActivity
 import top.fumiama.copymangaweb.data.ComicStructure
 import top.fumiama.copymangaweb.databinding.ActivityDlBinding
 import top.fumiama.copymangaweb.handler.DlHandler
+import top.fumiama.copymangaweb.tool.DlRecordStore
 import top.fumiama.copymangaweb.tool.InsetsTools
 import top.fumiama.copymangaweb.tool.MangaDlTools
 import top.fumiama.copymangaweb.tool.MangaDlTools.Companion.wmdlt
@@ -45,6 +46,7 @@ class DlActivity : ToolsBoxActivity() {
     private var btnw = 0
     private var canDl = false
     private lateinit var mangaDlTools: MangaDlTools
+    val dlRecord by lazy { DlRecordStore(filesDir) }
     var multiSelect = false
 
     @SuppressLint("SetTextI18n")
@@ -126,42 +128,37 @@ class DlActivity : ToolsBoxActivity() {
         }
         mBinding.dldlbar.cdwn.let { it.post {
             SetDraggable().with(this).onto(it)
-            it.setOnClickListener {
-                if (checkedChapter == 0)
-                    return@setOnClickListener
-                else {
-                    mBinding.dldlbar.pdwn.progress = 0
-                    if (canDl || checkedChapter == 0) {
-                        canDl = false
-                        haveDlStarted = false
-                        mangaDlTools.exit = true
-                    }
-                    else {
-                        mangaDlTools.exit = false
-                        haveDlStarted = true
-                        canDl = true
-                        handler.sendEmptyMessage(9)     //set dl card color to red
-                        Toast.makeText(this@DlActivity, "请耐心等待加载...", Toast.LENGTH_SHORT).show()
-                        Thread {
-                            if (fillChapters()) {
-                                val firstChapter = tbtnlist.firstOrNull { it.isChecked }
-                                val imageCount = firstChapter?.hash?.let { mangaDlTools.getImgsCountByHash(it) } ?: 0
-                                runOnUiThread { updateProgressBar(0, imageCount) }
-                                dlThread { downloadChapterPages(it) }
-                            }
-                        }.start()
-                    }
-                }
-            }
-            it.setOnLongClickListener {
-                handler.sendEmptyMessage(4)
-                return@setOnLongClickListener true
-            }
         } }
+        mBinding.dldlbar.btnDownload.setOnClickListener { toggleDownload() }
+        mBinding.dldlbar.btnSelectAll.setOnClickListener { handler.sendEmptyMessage(4) }
         mBinding.dtitle.isearch.apply { post {
             setOnClickListener { showMultiSelectInfo() }
         } }
         Thread{ analyzeStructure() }.start()
+    }
+
+    private fun toggleDownload() {
+        if (checkedChapter == 0) return
+        mBinding.dldlbar.pdwn.progress = 0
+        if (canDl) {
+            canDl = false
+            haveDlStarted = false
+            mangaDlTools.exit = true
+        } else {
+            mangaDlTools.exit = false
+            haveDlStarted = true
+            canDl = true
+            handler.sendEmptyMessage(9)     //set dl card color to red
+            Toast.makeText(this, "请耐心等待加载...", Toast.LENGTH_SHORT).show()
+            Thread {
+                if (fillChapters()) {
+                    val firstChapter = tbtnlist.firstOrNull { it.isChecked }
+                    val imageCount = firstChapter?.hash?.let { mangaDlTools.getImgsCountByHash(it) } ?: 0
+                    runOnUiThread { updateProgressBar(0, imageCount) }
+                    dlThread { downloadChapterPages(it) }
+                }
+            }.start()
+        }
     }
 
     private fun showMultiSelectInfo() {
@@ -286,7 +283,7 @@ class DlActivity : ToolsBoxActivity() {
         tbvTbtn.hint = caption
         tbvTbtn.layoutParams.width = btnw
         val zipFile = localChapterZip(title)
-        if (zipFile.exists()) {
+        if (dlRecord.contains(comicName, title)) {
             tbvTbtn.setBackgroundResource(R.drawable.rndbg_checked)
             tbvTbtn.isChecked = false
             tbvTbtn.freezesText = true
@@ -295,8 +292,9 @@ class DlActivity : ToolsBoxActivity() {
             findViewById<LinearLayout>(R.id.ltbtn)?.addView(tbv)
             invalidate()
         } }
+        val downloaded = dlRecord.contains(comicName, title)
         tbvTbtn.setOnClickListener { v ->
-            val normalAct = (multiSelect && zipFile.exists()) || !zipFile.exists()
+            val normalAct = (multiSelect && downloaded) || !downloaded
             val tbtn = v.findViewById<ChapterToggleButton>(R.id.tbtn)?:return@setOnClickListener
             if (zipFile.exists() && !tbtn.isChecked) tbtn.apply { post { setBackgroundResource(R.drawable.rndbg_checked) } }
             else if(normalAct) tbtn.apply { post { setBackgroundResource(R.drawable.toggle_button) } }
@@ -346,6 +344,7 @@ class DlActivity : ToolsBoxActivity() {
                     deleteChapter(f, i)
                     checkedChapter--
                 }
+                dlRecord.remove(comicName, i.textOn.toString())
             }
         }
         handler.sendEmptyMessage(6)

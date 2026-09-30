@@ -24,6 +24,7 @@ class DlHandler(activity: DlActivity, looper: Looper) : Handler(looper) {
             -2 -> d?.setLayouts()
             1 -> {
                 d?.tbtnlist?.get(msg.arg1)?.apply { post {
+                    da.get()?.dlRecord?.add(DlActivity.comicName, textOn.toString())
                     setBackgroundResource(R.drawable.rndbg_checked)
                     isChecked = false
                     d?.updateProgressBar()

@@ -22,6 +22,8 @@ class SetDraggable {
         var lastY = 0
         var firstX = 0
         var firstY = 0
+        var baseLeft = 0f
+        var baseTop = 0f
         target.post { target.setOnTouchListener { v: View, event: MotionEvent ->
             when (event.action) {
                 MotionEvent.ACTION_DOWN -> {
@@ -29,31 +31,22 @@ class SetDraggable {
                     lastY = event.rawY.toInt()
                     firstX = lastX
                     firstY = lastY
+                    baseLeft = v.left.toFloat()
+                    baseTop = v.top.toFloat()
                 }
                 MotionEvent.ACTION_MOVE -> {
                     val dx = event.rawX.toInt() - lastX
                     val dy = event.rawY.toInt() - lastY
-                    var left = v.left + dx
-                    var top = v.top + dy
-                    var right = v.right + dx
-                    var bottom = v.bottom + dy
-                    if (left < 0) {
-                        left = 0
-                        right = left + v.width
-                    }
-                    if (right > screenWidth) {
-                        right = screenWidth
-                        left = right - v.width
-                    }
-                    if (top < 0) {
-                        top = 0
-                        bottom = top + v.height
-                    }
-                    if (bottom > screenHeight) {
-                        bottom = screenHeight
-                        top = bottom - v.height
-                    }
-                    v.layout(left, top, right, bottom)
+                    var left = baseLeft + v.translationX + dx
+                    var top = baseTop + v.translationY + dy
+                    if (left < 0) left = 0f
+                    if (top < 0) top = 0f
+                    if (left + v.width > screenWidth) left = (screenWidth - v.width).toFloat()
+                    if (top + v.height > screenHeight) top = (screenHeight - v.height).toFloat()
+                    // 用 translationX/Y 而非 v.layout：ConstraintLayout 重排（例如進度文字變動）
+                    // 只會重置約束基礎位置、保留位移，拖曳位置不會被重排拉回
+                    v.translationX = left - baseLeft
+                    v.translationY = top - baseTop
                     lastX = event.rawX.toInt()
                     lastY = event.rawY.toInt()
                 }
