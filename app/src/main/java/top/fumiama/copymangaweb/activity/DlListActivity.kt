@@ -60,7 +60,7 @@ class DlListActivity: Activity() {
                         )
                     }
                     chosenFile.name.endsWith(".zip") -> {
-                        Toast.makeText(this, "加载中...", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(this, "載入中...", Toast.LENGTH_SHORT).show()
                         ViewMangaActivity.zipFile = chosenFile
                         ViewMangaActivity.titleText = it[position]
                         ViewMangaActivity.zipPosition = position
@@ -73,12 +73,12 @@ class DlListActivity: Activity() {
             mBinding.mylv.setOnItemLongClickListener { _, _, position, _ ->
                 val chosenFile = File(cd, it[position])
                 AlertDialog.Builder(this)
-                    .setIcon(R.drawable.ic_launcher_foreground).setMessage("在此执行删除/查错?")
-                    .setTitle("提示").setPositiveButton("删除"){ _, _ ->
+                    .setIcon(R.drawable.ic_launcher_foreground).setMessage("在此執行刪除/查錯?")
+                    .setTitle("提示").setPositiveButton("刪除"){ _, _ ->
                         if(chosenFile.exists()) handler?.obtainMessage(2, chosenFile)?.sendToTarget()       //call rmrf
                         handler?.obtainMessage(3, cd)?.sendToTarget()       //call scanFile
                     }.setNegativeButton(android.R.string.cancel){_, _ ->}
-                    .setNeutralButton("查错"){_, _ -> handler?.obtainMessage(1, chosenFile)?.sendToTarget()}  //call checkDir
+                    .setNeutralButton("查錯"){_, _ -> handler?.obtainMessage(1, chosenFile)?.sendToTarget()}  //call checkDir
                     .show()
                 true
             }
@@ -98,7 +98,7 @@ class DlListActivity: Activity() {
         nullZipDirStr = emptyArray()
         findNullWebpZipFileInDir(f)
         if(nullZipDirStr.isNotEmpty()) showErrorZip(nullZipDirStr.joinToString("\n"))
-        else Toast.makeText(this, "未发现错误", Toast.LENGTH_SHORT).show()
+        else Toast.makeText(this, "未發現錯誤", Toast.LENGTH_SHORT).show()
     }
 
     private fun callDownloadActivity(jsonFile: File){
@@ -140,14 +140,14 @@ class DlListActivity: Activity() {
                 re
             }
         } catch (e: Exception) {
-            Toast.makeText(this, "读取${f.name}错误!", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "讀取${f.name}錯誤!", Toast.LENGTH_SHORT).show()
             true
         }
     }
 
     private fun showErrorZip(msg: CharSequence) = AlertDialog.Builder(this)
         .setIcon(R.drawable.ic_launcher_foreground)
-        .setTitle("找到以下错误文件,是否删除?")
+        .setTitle("找到以下錯誤檔案,是否刪除?")
         .setMessage(msg)
         .setPositiveButton(android.R.string.ok){_, _ -> deleteErrorZip()}
         .setNegativeButton(android.R.string.cancel){_, _ ->}

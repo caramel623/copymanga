@@ -81,7 +81,7 @@ class ViewMangaActivity : ToolsBoxActivity() {
                     loadOneImg()
                 } catch (e: java.lang.Exception) {
                     e.printStackTrace()
-                    toolsBox.toastError("页数${currentItem}不合法")
+                    toolsBox.toastError("頁數${currentItem}不合法")
                 }
             }// else vp.currentItem += delta
             field = getPageNumber()
@@ -110,13 +110,13 @@ class ViewMangaActivity : ToolsBoxActivity() {
         }
         mBinding.oneinfo.inftitle.ttitle.apply { post { text = titleText } }
         Log.d("MyVM", "dlZip2View: $dlZip2View, mangaZip: $mangaZip")
-        if(dlZip2View && mangaZip?.exists() != true) toolsBox.toastError("已经到头了~")
+            if(dlZip2View && mangaZip?.exists() != true) toolsBox.toastError("已經到頭了~")
         else Thread {
             try {
                 count = if (dlZip2View) countZipItems() else imgUrls.size
             } catch (e: Exception) {
                 e.printStackTrace()
-                runOnUiThread { toolsBox.toastError("分析图片url错误") }
+                        runOnUiThread { toolsBox.toastError("分析圖片url錯誤") }
             }
             runOnUiThread {
                 try {
@@ -124,7 +124,7 @@ class ViewMangaActivity : ToolsBoxActivity() {
                     else prepareReaderItems()
                 } catch (e: Exception) {
                     e.printStackTrace()
-                    toolsBox.toastError("准备控件错误")
+                    toolsBox.toastError("準備控件錯誤")
                 } finally {
                     dialog?.dismiss()
                     dialog = null
@@ -303,7 +303,7 @@ class ViewMangaActivity : ToolsBoxActivity() {
             setOnClickListener {
                 if (mBinding.infcard.idtblr.isChecked) p["r2l"] = "true"
                 else p["r2l"] = "false"
-                Toast.makeText(this@ViewMangaActivity, "下次浏览生效", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this@ViewMangaActivity, "下次瀏覽生效", Toast.LENGTH_SHORT).show()
             }
         } }
     }
@@ -314,7 +314,7 @@ class ViewMangaActivity : ToolsBoxActivity() {
             setOnClickListener {
                 if (mBinding.infcard.idtbvp.isChecked) p["noAnimation"] = "true"
                 else p["noAnimation"] = "false"
-                Toast.makeText(this@ViewMangaActivity, "下次浏览生效", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this@ViewMangaActivity, "下次瀏覽生效", Toast.LENGTH_SHORT).show()
             }
         } }
     }
@@ -413,7 +413,7 @@ class ViewMangaActivity : ToolsBoxActivity() {
                     mBinding.vp.apply { post { orientation = ViewPager2.ORIENTATION_HORIZONTAL } }
                     p["vertical"] = "false"
                 }
-                Toast.makeText(this@ViewMangaActivity, "下次浏览生效", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this@ViewMangaActivity, "下次瀏覽生效", Toast.LENGTH_SHORT).show()
             }
         } }
     }
@@ -440,7 +440,7 @@ class ViewMangaActivity : ToolsBoxActivity() {
                 }
             }
         } catch (e: Exception) {
-            runOnUiThread { toolsBox.toastError("读取zip错误!") }
+            runOnUiThread { toolsBox.toastError("讀取zip錯誤!") }
         }
         return c
     }

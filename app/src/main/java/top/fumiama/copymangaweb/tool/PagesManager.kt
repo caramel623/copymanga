@@ -51,7 +51,7 @@ class PagesManager(w: WeakReference<ViewMangaActivity>) {
                     }
                     else Toast.makeText(
                         v.applicationContext,
-                        "已经到头了~",
+                        "已經到頭了~",
                         Toast.LENGTH_SHORT
                     ).show()
                 }
@@ -65,7 +65,7 @@ class PagesManager(w: WeakReference<ViewMangaActivity>) {
         val hint = if(goNext) "下" else "上"
         Toast.makeText(
             v?.applicationContext,
-            "再次按下加载${hint}一章",
+            "再按一次載入${hint}一章",
             Toast.LENGTH_SHORT
         ).show()
         if(goNext) isEndR = true

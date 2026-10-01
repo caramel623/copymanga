@@ -265,7 +265,7 @@ class MainActivity: ToolsBoxActivity() {
         wm = WeakReference(this)
         mh = MainHandler(Looper.myLooper()!!)
         toolsBox.netInfo.let {
-            if(it == "无网络" || it == "错误") {
+            if(it == "無網絡" || it == "錯誤") {
                 setFab2DlList()
                 return@let
             }
@@ -490,7 +490,7 @@ class MainActivity: ToolsBoxActivity() {
         DlListActivity.currentDir = getExternalFilesDir("")
         startActivity(
             Intent(this, (if(mViewModel.showDlList.value == true) DlListActivity::class else DlActivity::class).java)
-                .putExtra("title", "我的下载")
+                .putExtra("title", "我的下載")
         )
     }
 

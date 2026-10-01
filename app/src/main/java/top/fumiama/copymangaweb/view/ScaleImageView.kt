@@ -561,7 +561,7 @@ class ScaleImageView : ImageView {
             }
         }catch (e:Exception){
             e.printStackTrace()
-            ViewMangaActivity.va?.get()?.toolsBox?.toastError("图片加载错误，请尝试下载后使用较低图片质量查看", false)
+            ViewMangaActivity.va?.get()?.toolsBox?.toastError("圖片載入錯誤，請嘗試下載後使用較低圖片品質查看", false)
         }
     }
     ////////////////////////////////有效性判断////////////////////////////////

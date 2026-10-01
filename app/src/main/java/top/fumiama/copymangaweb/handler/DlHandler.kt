@@ -44,7 +44,7 @@ class DlHandler(activity: DlActivity, looper: Looper) : Handler(looper) {
                 d?.tbtnlist?.get(msg.arg1)?.apply { post {
                     setBackgroundResource(R.drawable.rndbg_error)
                     d!!.dldChapter--
-                    Toast.makeText(d, "下载${d?.tbtnlist?.get(msg.arg1)?.textOn}失败", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(d, "下載${d?.tbtnlist?.get(msg.arg1)?.textOn}失敗", Toast.LENGTH_SHORT).show()
                     d?.updateProgressBar()
                 } }
             }
@@ -81,12 +81,13 @@ class DlHandler(activity: DlActivity, looper: Looper) : Handler(looper) {
                 d?.mBinding?.dldlbar?.tdwn?.apply { post {
                     text = "${d?.dldChapter}/${d?.checkedChapter}"
                 } }
+                d?.setDownloadUiState()
             }
             5 -> {
                 setSize(msg.arg2, msg.arg1)
                 d?.updateProgressBar(msg.arg2, size)
                 if (!(msg.obj as Boolean)) {
-                    Toast.makeText(d, "下载${d?.tbtnlist?.get(msg.arg1)?.textOn}的第${msg.arg2}页失败", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(d, "下載${d?.tbtnlist?.get(msg.arg1)?.textOn}的第${msg.arg2}頁失敗", Toast.LENGTH_SHORT).show()
                 }
             }
             6 -> d?.mBinding?.dldlbar?.tdwn?.apply { post { text = "${d?.dldChapter}/${d?.checkedChapter}" } }
@@ -97,7 +98,7 @@ class DlHandler(activity: DlActivity, looper: Looper) : Handler(looper) {
             9 -> d?.resources?.getColor(R.color.colorRed)?.let { d?.mBinding?.dldlbar?.cdwn?.apply { post {
                 setCardBackgroundColor(it)
             } } }
-            10 -> Toast.makeText(d, "下载${d?.tbtnlist?.get(msg.arg1)?.textOn}的第${msg.arg2}页失败，尝试重新下载...", Toast.LENGTH_SHORT).show()
+            10 -> Toast.makeText(d, "下載${d?.tbtnlist?.get(msg.arg1)?.textOn}的第${msg.arg2}頁失敗，嘗試重新下載...", Toast.LENGTH_SHORT).show()
         }
     }
     private fun setSize(pageNow: Int, tbtnNo: Int){

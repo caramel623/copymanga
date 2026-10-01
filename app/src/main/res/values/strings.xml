@@ -6,20 +6,22 @@
 
     <string name="pc_ua">Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/86.0.4240.75 Safari/537.36 Edg/86.0.622.38</string>
 
-    <string name="blocked_ad">已屏蔽其他网站页面</string>
-    <string name="loading">加载中…</string>
+    <string name="blocked_ad">已屏蔽其他網站頁面</string>
+    <string name="loading">載入中…</string>
     <string name="reader_waiting">正在背景載入漫畫圖片</string>
-    <string name="vol_turn_off">音量翻页关</string>
-    <string name="vol_turn_on">音量翻页开</string>
-    <string name="horizontal">横向</string>
-    <string name="vertical">竖向</string>
-    <string name="animation_on">动画开</string>
-    <string name="animation_off">动画关</string>
-    <string name="arrow_front_back">←前 后→</string>
-    <string name="arrow_back_front">←后 前→</string>
+    <string name="vol_turn_off">音量翻頁關</string>
+    <string name="vol_turn_on">音量翻頁開</string>
+    <string name="horizontal">橫向</string>
+    <string name="vertical">縱向</string>
+    <string name="animation_on">動畫開</string>
+    <string name="animation_off">動畫關</string>
+    <string name="arrow_front_back">←前 後→</string>
+    <string name="arrow_back_front">←後 前→</string>
     <string name="reader_settings">進階閱讀設定</string>
     <string name="zero_per_zero">0/0</string>
-    <string name="dl_btn_download">下載/暫停</string>
-    <string name="dl_btn_selectall">全選/清空</string>
+    <string name="dl_btn_download">下載</string>
+    <string name="dl_btn_download_pause">暫停</string>
+    <string name="dl_btn_selectall">全選</string>
+    <string name="dl_btn_selectall_clear">清空</string>
     <string name="hint_download_card">拖動此卡移動位置</string>
 </resources>

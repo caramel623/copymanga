@@ -35,14 +35,14 @@ class ToolsBox(private val w: WeakReference<Activity>) {
             return cm.getNetworkCapabilities(cm.activeNetwork)?.let {
                 when {
                     it.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) -> return@let "WIFI"
-                    it.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) -> return@let "移动数据"
-                    it.hasTransport(NetworkCapabilities.TRANSPORT_BLUETOOTH) -> return@let "蓝牙"
-                    it.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) -> return@let "以太网"
+                    it.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) -> return@let "手機數據"
+                    it.hasTransport(NetworkCapabilities.TRANSPORT_BLUETOOTH) -> return@let "藍牙"
+                    it.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) -> return@let "網路線"
                     it.hasTransport(NetworkCapabilities.TRANSPORT_LOWPAN) -> return@let "LOWPAN"
                     it.hasTransport(NetworkCapabilities.TRANSPORT_VPN) -> return@let "VPN"
-                    else -> return@let "无网络"
+                    else -> return@let "無網絡"
                 }
-            } ?: "错误"
+            } ?: "錯誤"
         }
     val resolution = Resolution(Regex("c\\d+x\\."))
 

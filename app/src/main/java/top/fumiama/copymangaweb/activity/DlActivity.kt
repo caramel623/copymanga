@@ -44,6 +44,7 @@ class DlActivity : ToolsBoxActivity() {
     var tbtnlist: Array<ChapterToggleButton> = arrayOf()
     private val handler = DlHandler(this, Looper.myLooper()!!)
     private var btnw = 0
+    @Volatile
     private var canDl = false
     private lateinit var mangaDlTools: MangaDlTools
     val dlRecord by lazy { DlRecordStore(filesDir) }
@@ -113,6 +114,7 @@ class DlActivity : ToolsBoxActivity() {
         haveDlStarted = false
         if (canDl) canDl = false
         handler.sendEmptyMessage(8)     //set dl card color to blue
+        setDownloadUiState()
     }
 
     @SuppressLint("SetTextI18n")
@@ -131,10 +133,19 @@ class DlActivity : ToolsBoxActivity() {
         } }
         mBinding.dldlbar.btnDownload.setOnClickListener { toggleDownload() }
         mBinding.dldlbar.btnSelectAll.setOnClickListener { handler.sendEmptyMessage(4) }
+        setDownloadUiState()
         mBinding.dtitle.isearch.apply { post {
             setOnClickListener { showMultiSelectInfo() }
         } }
         Thread{ analyzeStructure() }.start()
+    }
+
+    fun setDownloadUiState() {
+        val bar = mBinding.dldlbar
+        bar.cdwn.post {
+            bar.btnDownload.text = if (canDl) getString(R.string.dl_btn_download_pause) else getString(R.string.dl_btn_download)
+            bar.btnSelectAll.text = if (haveSElectAll) getString(R.string.dl_btn_selectall_clear) else getString(R.string.dl_btn_selectall)
+        }
     }
 
     private fun toggleDownload() {
@@ -144,26 +155,34 @@ class DlActivity : ToolsBoxActivity() {
             canDl = false
             haveDlStarted = false
             mangaDlTools.exit = true
+            setDownloadUiState()
         } else {
             mangaDlTools.exit = false
             haveDlStarted = true
             canDl = true
             handler.sendEmptyMessage(9)     //set dl card color to red
-            Toast.makeText(this, "请耐心等待加载...", Toast.LENGTH_SHORT).show()
+            setDownloadUiState()
+            Toast.makeText(this, "請耐心等候載入...", Toast.LENGTH_SHORT).show()
             Thread {
                 if (fillChapters()) {
                     val firstChapter = tbtnlist.firstOrNull { it.isChecked }
                     val imageCount = firstChapter?.hash?.let { mangaDlTools.getImgsCountByHash(it) } ?: 0
                     runOnUiThread { updateProgressBar(0, imageCount) }
                     dlThread { downloadChapterPages(it) }
+                } else {
+                    canDl = false
+                    haveDlStarted = false
+                    handler.sendEmptyMessage(8)     //set dl card color to blue
+                    setDownloadUiState()
+                    runOnUiThread { Toast.makeText(this, "載入章節失敗，請重試", Toast.LENGTH_SHORT).show() }
                 }
             }.start()
         }
     }
 
     private fun showMultiSelectInfo() {
-        toolsBox.buildInfo("进入多选模式？", "确定后，长按下载条可选中全部漫画，而不仅限于未下载者；点击已下载漫画可进行选择。",
-            "确定", null, "取消", { multiSelect = true })
+        toolsBox.buildInfo("進入多選模式？", "確定後，長按下載條可選中全部漫畫，而不僅限於未下載者；點擊已下載漫畫可進行選擇。",
+            "確定", null, "取消", { multiSelect = true })
     }
 
     private fun analyzeStructure() {
@@ -215,6 +234,7 @@ class DlActivity : ToolsBoxActivity() {
         canDl = true
         mangaDlTools.exit = false
         handler.sendEmptyMessage(9)
+        setDownloadUiState()
         Toast.makeText(this, "發現未完成下載，正在從暫存進度恢復", Toast.LENGTH_LONG).show()
         Thread {
             pending.forEach { chapter ->
@@ -224,6 +244,7 @@ class DlActivity : ToolsBoxActivity() {
             haveDlStarted = false
             if (canDl) canDl = false
             handler.sendEmptyMessage(8)
+            setDownloadUiState()
         }.start()
     }
 
@@ -317,9 +338,9 @@ class DlActivity : ToolsBoxActivity() {
         }
         tbvTbtn.setOnLongClickListener {
             if (zipFile.exists()) {
-                toolsBox.buildInfo("确认删除这些章节?",
-                    "该操作将不可撤销",
-                    "确定",
+                toolsBox.buildInfo("確認刪除這些章節?",
+                    "該操作將不可撤銷",
+                    "確定",
                     null,
                     "取消",
                     {
@@ -347,6 +368,8 @@ class DlActivity : ToolsBoxActivity() {
                 dlRecord.remove(comicName, i.textOn.toString())
             }
         }
+        if (haveSElectAll) haveSElectAll = false
+        setDownloadUiState()
         handler.sendEmptyMessage(6)
     }
 

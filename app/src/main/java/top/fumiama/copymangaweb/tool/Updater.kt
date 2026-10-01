@@ -36,7 +36,7 @@ class Updater(
         super.onCheckLatestVersion(version)
         a.get()?.apply {
             if (ignoreSkip) withContext(Dispatchers.Main) {
-                Toast.makeText(this@apply, "无更新", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this@apply, "無更新", Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -59,8 +59,8 @@ class Updater(
                 }
             }
             withContext(Dispatchers.Main) {
-                toolsBox.buildInfo("看板", message, "下载新版", "跳过该版", "取消", {
-                    mInfo = toolsBox.buildAlertWithView("下载进度", progressBar, "隐藏")
+                toolsBox.buildInfo("看板", message, "下載新版", "跳過該版", "取消", {
+                    mInfo = toolsBox.buildAlertWithView("下載進度", progressBar, "隱藏")
                     a.get()?.lifecycleScope?.launch { withContext(Dispatchers.IO) {
                         download(md5, progressHandler)
                     } }
@@ -83,10 +83,10 @@ class Updater(
             mInfo = null
             when (cause) {
                 UPDATE_FAIL_NETWORK -> a.get()?.apply {
-                    Toast.makeText(this@apply, "网络错误", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this@apply, "網路錯誤", Toast.LENGTH_SHORT).show()
                 }
                 UPDATE_FAIL_FILE_CORRUPT -> a.get()?.apply {
-                    Toast.makeText(this@apply, "文件损坏", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this@apply, "檔案損壞", Toast.LENGTH_SHORT).show()
                 }
                 else -> {}
             }
@@ -99,7 +99,7 @@ class Updater(
             mInfo?.dismiss()
             mInfo = null
             a.get()?.apply {
-                Toast.makeText(this@apply, "下载成功", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this@apply, "下載成功", Toast.LENGTH_SHORT).show()
                 install(data, this)
             }
         }
