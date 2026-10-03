@@ -34,24 +34,42 @@ class NovelLibraryActivity : Activity() {
         render()
     }
 
+    private val sortOptions = arrayOf("updated", "added", "reading")
+
+    private fun currentSortMode(): String {
+        val stored = runCatching { sortPreferences.getString("sortMode", null) }.getOrNull()
+        if (stored != null && stored in sortOptions) return stored
+        return if (sortPreferences.getBoolean("updated", false)) "updated" else "added"
+    }
+
     private fun render() {
         val night = resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK == Configuration.UI_MODE_NIGHT_YES
         val list = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL; setPadding(24, 24, 24, 24)
             setBackgroundColor(if (night) Color.rgb(18, 18, 18) else Color.WHITE)
         }
+        val sortMode = currentSortMode()
         list.addView(Button(this).apply {
-            text = if (sortPreferences.getBoolean("updated", false)) "排序：更新時間 ↓" else "排序：加入書架時間 ↓"
+            text = when (sortMode) {
+                "updated" -> "排序：更新時間 ↓"
+                "reading" -> "排序：閱讀時間 ↓"
+                else -> "排序：加入書架時間 ↓"
+            }
+            val labels = arrayOf("更新時間", "加入書架時間", "閱讀時間")
             setOnClickListener {
                 android.app.AlertDialog.Builder(this@NovelLibraryActivity).setTitle("書架排序（最新在前）")
-                    .setSingleChoiceItems(arrayOf("更新時間", "加入書架時間"), if (sortPreferences.getBoolean("updated", false)) 0 else 1) { dialog, which ->
-                        sortPreferences.edit().putBoolean("updated", which == 0).apply(); dialog.dismiss(); render()
+                    .setSingleChoiceItems(labels, sortOptions.indexOf(sortMode)) { dialog, which ->
+                        sortPreferences.edit().putString("sortMode", sortOptions[which]).apply(); dialog.dismiss(); render()
                     }.show()
             }
         })
         val records = NovelShelfStore(this).list()
-        val shelf = if (sortPreferences.getBoolean("updated", false)) records.sortedWith(compareByDescending<top.fumiama.copymangaweb.tool.NovelShelfRecord> { it.lastUpdated }.thenByDescending { it.addedAt }) else records
         val progress = NovelReadingStore(this).list().associateBy { it.slug }
+        val shelf = when (sortMode) {
+            "updated" -> records.sortedWith(compareByDescending<top.fumiama.copymangaweb.tool.NovelShelfRecord> { it.lastUpdated }.thenByDescending { it.addedAt })
+            "reading" -> records.sortedWith(compareByDescending<top.fumiama.copymangaweb.tool.NovelShelfRecord> { progress[it.slug]?.updatedAt ?: 0L }.thenByDescending { it.addedAt })
+            else -> records
+        }
         if (shelf.isEmpty()) list.addView(TextView(this).apply {
             text = "尚未加入任何輕小說"; textSize = 18f; setPadding(16, 40, 16, 40)
             setTextColor(if (night) Color.LTGRAY else Color.DKGRAY)
