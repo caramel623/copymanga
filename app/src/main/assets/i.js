@@ -444,6 +444,7 @@ if (typeof (loaded) == "undefined") {
                 var isNovelDetail = /\/(?:book|novel)\/[^/?#]+\/?$/i.test(path) &&
                     !/\/(?:bookrack|discover|search|ranking)\/?$/i.test(path);
                 if (!isNovelDetail) return;
+                if (!GM.isNovelReaderNativeEnabled()) return;
                 event.preventDefault();
                 event.stopPropagation();
                 GM.openNovel(href);
@@ -451,7 +452,13 @@ if (typeof (loaded) == "undefined") {
         },
         prepareNovelShelfEntryButton: function () {
             var existing = document.getElementById("cm-open-local-novel-shelf");
-            if (location.pathname.indexOf("/h5/discover") < 0) {
+            var onDiscover = location.pathname.indexOf("/h5/discover") >= 0;
+            var onBookrack = location.pathname.indexOf("/bookrack") >= 0;
+            if (!onDiscover && !onBookrack) {
+                if (existing) existing.remove();
+                return;
+            }
+            if (!GM.isNovelShelfEntryEnabled()) {
                 if (existing) existing.remove();
                 return;
             }

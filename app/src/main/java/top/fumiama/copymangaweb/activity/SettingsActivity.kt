@@ -55,6 +55,8 @@ class SettingsActivity : Activity() {
         }
 
         add(binding.webDarkMode, "webDarkMode", arrayOf("開啟：深藍底淺色字", "關閉：網站原始配色"), arrayOf("true", "false"), "false")
+        add(binding.novelShelfEntry, "novelShelfEntry", arrayOf("開啟：顯示本地書架入口", "關閉：不顯示"), arrayOf("true", "false"), "true")
+        add(binding.novelReaderNative, "novelReaderNative", arrayOf("開啟：進入自帶小說頁", "關閉：進入手機版網頁"), arrayOf("true", "false"), "true")
         add(binding.quality, "quality", arrayOf("原圖", "高 1500px", "中 1000px", "省流 750px"), arrayOf("0", "1500", "1000", "750"), "1500")
         add(binding.preload, "preload", arrayOf("1 張", "3 張", "5 張", "8 張"), arrayOf("1", "3", "5", "8"), "3")
         add(binding.retry, "retry", arrayOf("不重試", "1 次", "2 次", "3 次"), arrayOf("0", "1", "2", "3"), "1")

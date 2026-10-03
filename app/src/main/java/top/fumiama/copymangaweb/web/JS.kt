@@ -40,6 +40,12 @@ class JS(private val comicWebView: Boolean = false) {
     fun isWebDarkModeEnabled(): Boolean = settings()?.get("webDarkMode") == "true"
 
     @JavascriptInterface
+    fun isNovelShelfEntryEnabled(): Boolean = settings()?.get("novelShelfEntry") != "false"
+
+    @JavascriptInterface
+    fun isNovelReaderNativeEnabled(): Boolean = settings()?.get("novelReaderNative") != "false"
+
+    @JavascriptInterface
     fun toTraditionalChinese(text: String): String {
         if (!isRanobeTraditionalEnabled() || text.isBlank()) return text
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
