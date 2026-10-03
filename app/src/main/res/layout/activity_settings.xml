@@ -54,7 +54,7 @@
             android:text="匯入小說清單及閱讀歷史" />
         <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="網頁顯示模式" />
         <Spinner android:id="@+id/webDarkMode" android:layout_width="match_parent" android:layout_height="48dp" />
-        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="12dp" android:text="輕小說：顯示本地書架入口（書架/發現頁）" />
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="12dp" android:text="輕小說：顯示本地書架入口（僅書架頁，發現頁固定顯示）" />
         <Spinner android:id="@+id/novelShelfEntry" android:layout_width="match_parent" android:layout_height="48dp" />
         <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="輕小說：點擊小說進入自帶閱讀頁" />
         <Spinner android:id="@+id/novelReaderNative" android:layout_width="match_parent" android:layout_height="48dp" />

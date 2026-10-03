@@ -458,7 +458,7 @@ if (typeof (loaded) == "undefined") {
                 if (existing) existing.remove();
                 return;
             }
-            if (!GM.isNovelShelfEntryEnabled()) {
+            if (onBookrack && !GM.isNovelShelfEntryEnabled()) {
                 if (existing) existing.remove();
                 return;
             }
