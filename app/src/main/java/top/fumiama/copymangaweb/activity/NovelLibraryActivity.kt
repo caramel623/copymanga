@@ -10,6 +10,7 @@ import android.graphics.Color
 import android.content.res.Configuration
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import top.fumiama.copymangaweb.R
 import top.fumiama.copymangaweb.tool.NovelReadingStore
 import top.fumiama.copymangaweb.tool.NovelShelfStore
 
@@ -55,9 +56,13 @@ class NovelLibraryActivity : Activity() {
                 "reading" -> "排序：閱讀時間 ↓"
                 else -> "排序：加入書架時間 ↓"
             }
+            setTextColor(if (night) Color.rgb(235, 235, 235) else Color.rgb(40, 40, 40))
+            setBackgroundColor(if (night) Color.rgb(58, 58, 58) else Color.rgb(222, 226, 230))
             val labels = arrayOf("更新時間", "加入書架時間", "閱讀時間")
             setOnClickListener {
-                android.app.AlertDialog.Builder(this@NovelLibraryActivity).setTitle("書架排序（最新在前）")
+                val builder = if (night) android.app.AlertDialog.Builder(this@NovelLibraryActivity, R.style.DarkAlertTheme)
+                    else android.app.AlertDialog.Builder(this@NovelLibraryActivity)
+                builder.setTitle("書架排序（最新在前）")
                     .setSingleChoiceItems(labels, sortOptions.indexOf(sortMode)) { dialog, which ->
                         sortPreferences.edit().putString("sortMode", sortOptions[which]).apply(); dialog.dismiss(); render()
                     }.show()

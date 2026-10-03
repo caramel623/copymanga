@@ -7,4 +7,6 @@
         <item name="android:windowLightStatusBar">true</item>
         <item name="android:navigationBarColor">@android:color/transparent</item>
     </style>
+
+    <style name="DarkAlertTheme" parent="android:Theme.DeviceDefault.Dialog.Alert" />
 </resources>
