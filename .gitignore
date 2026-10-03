@@ -23,3 +23,12 @@
 google-services.json
 *.log
 hs_err_pid*
+
+# debug captures
+*_dark.png
+dialog*.png
+home*.png
+shelf*.png
+ui.xml
+ui2.xml
+ui3.xml
