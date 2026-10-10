@@ -357,7 +357,9 @@ if (typeof (loaded) == "undefined") {
                     if (match) href = location.origin + "/h5/details/comic/" + match[1];
                 }
                 if (!href) return;
-                if (path.indexOf("/details/comic/") < 0) return;
+                var finalPath;
+                try { finalPath = new URL(href, location.href).pathname; } catch (_) { return; }
+                if (finalPath.indexOf("/details/comic/") < 0) return;
                 event.preventDefault();
                 event.stopPropagation();
                 event.stopImmediatePropagation();
