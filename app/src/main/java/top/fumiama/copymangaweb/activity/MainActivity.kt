@@ -305,6 +305,14 @@ class MainActivity: ToolsBoxActivity() {
                 mBinding.w.loadUrl(configuredUrl)
             }
             applyWebDarkMode()
+            mBinding.w.evaluateJavascript(
+                "if (typeof invoke !== 'undefined') invoke.prepareNovelShelfEntryButton();",
+                null
+            )
+            visibleWebView()?.evaluateJavascript(
+                "if (typeof invoke !== 'undefined') invoke.prepareNovelShelfEntryButton();",
+                null
+            )
         }
     }
 

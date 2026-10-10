@@ -356,7 +356,8 @@ if (typeof (loaded) == "undefined") {
                         source.match(/\/[a-z0-9]\/([a-z0-9_-]+)\/cover\//i);
                     if (match) href = location.origin + "/h5/details/comic/" + match[1];
                 }
-                if (!href || (path.indexOf("/details/comic/") < 0 && !card)) return;
+                if (!href) return;
+                if (path.indexOf("/details/comic/") < 0) return;
                 event.preventDefault();
                 event.stopPropagation();
                 event.stopImmediatePropagation();
