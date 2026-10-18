@@ -39,7 +39,11 @@ class NovelReadingStore(context: Context) {
                 put("scrollY", item.scrollY); put("updatedAt", item.updatedAt)
             })
         }
-        file.writeText(array.toString())
+        file.let { target ->
+            val tmp = File(target.parentFile, "${target.name}.tmp")
+            tmp.writeText(array.toString())
+            if (!tmp.renameTo(target)) target.writeText(tmp.readText())
+        }
     }
 
     fun find(slug: String): NovelReadingRecord? = list().firstOrNull { it.slug == slug }
