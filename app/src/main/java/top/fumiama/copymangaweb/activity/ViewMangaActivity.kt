@@ -251,7 +251,8 @@ class ViewMangaActivity : ToolsBoxActivity() {
             return
         }
         if (r2l && !notUseVP) mBinding.vp.apply { post { currentItem = count - num } }
-        else if (notUseVP) currentItem = num - 1 else mBinding.vp.currentItem = num - 1
+        else if (notUseVP) currentItem = (num - 1).coerceIn(0, (count - 1).coerceAtLeast(0))
+        else mBinding.vp.currentItem = num - 1
     }
 
     private fun getImgBitmap(position: Int): Bitmap? {
@@ -267,7 +268,7 @@ class ViewMangaActivity : ToolsBoxActivity() {
 
     private fun loadOneImg() {
         if(dlZip2View) mBinding.vone.onei.apply { post { setImageBitmap(getImgBitmap(currentItem)) } }
-        else loadOnlineImage(imgUrls[currentItem], mBinding.vone.onei)
+        else if (imgUrls.isNotEmpty()) loadOnlineImage(imgUrls[currentItem.coerceAtMost(imgUrls.lastIndex)], mBinding.vone.onei)
         updateSeekBar()
     }
 
