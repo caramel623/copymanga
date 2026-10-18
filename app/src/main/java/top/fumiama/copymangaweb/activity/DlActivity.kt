@@ -397,6 +397,7 @@ class DlActivity : ToolsBoxActivity() {
 
     @SuppressLint("SetTextI18n")
     fun updateProgressBar() {
+        if (checkedChapter <= 0) return
         mBinding.dldlbar.textView.apply { post {
             text = "當前 ${++dldChapter} 章，本次下載 ${checkedChapter} 章"
         } }
@@ -406,7 +407,7 @@ class DlActivity : ToolsBoxActivity() {
 
     fun updateProgressBar(pageNow: Int, size: Int) {
         mBinding.dldlbar.tdwn.apply { post { text = "圖片下載 $pageNow/$size" } }
-        if (size <= 0) return
+        if (size <= 0 || checkedChapter <= 0) return
         val delta = 100 / checkedChapter
         val start = dldChapter * delta
         val now = pageNow * delta / size
