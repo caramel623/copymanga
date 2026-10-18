@@ -379,7 +379,7 @@ class MainActivity: ToolsBoxActivity() {
         ) return
         intent.clipData?.let { clipData ->
             var results = arrayOf<Uri>()
-            for (i in 0..clipData.itemCount) {
+            for (i in 0 until clipData.itemCount) {
                 val item = clipData.getItemAt(i)
                 results += item.uri
             }
