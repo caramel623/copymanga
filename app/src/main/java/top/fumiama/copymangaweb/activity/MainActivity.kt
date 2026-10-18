@@ -504,6 +504,7 @@ class MainActivity: ToolsBoxActivity() {
     fun callViewManga(content: String) {
         lifecycleScope.launch { withContext(Dispatchers.IO) {
             val listChapter = content.split('\n')
+            if (listChapter.size < 3) return@withContext
             if(!saveUrlsOnly) {
                 ViewMangaActivity.titleText = listChapter[0].substringBeforeLast(' ')
                 ViewMangaActivity.nextChapterUrl = listChapter[1].let { if(it == "null") null else it }
