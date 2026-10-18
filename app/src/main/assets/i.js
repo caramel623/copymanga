@@ -301,9 +301,12 @@ if (typeof (loaded) == "undefined") {
                 });
                 var nodes = Array();
                 while (walker.nextNode()) nodes.push(walker.currentNode);
-                nodes.forEach(function (node) {
-                    var converted = GM.toTraditionalChinese(node.nodeValue);
-                    if (converted != node.nodeValue) node.nodeValue = converted;
+                if (!nodes.length) return;
+                var converted = GM.toTraditionalChinese(nodes.map(function (node) { return node.nodeValue; }).join("\u0000"));
+                var parts = converted.split("\u0000");
+                if (parts.length != nodes.length) return;
+                nodes.forEach(function (node, index) {
+                    if (parts[index] != node.nodeValue) node.nodeValue = parts[index];
                 });
             };
             convert(document.body);
