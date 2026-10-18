@@ -54,11 +54,14 @@ class MangaDlTools(activity: DlActivity) {
             imgUrlsList?.set(index, emptyArray())
             return false
         }
-        da.get()?.apply {
-            p[url.substringAfterLast("/")] = (chaptersCount++).toString()
-            runOnUiThread { mBinding.dwh.apply { post { loadUrl(url) } } }
+        val activity = da.get()
+        if (activity == null) {
+            sem.release()
+            return false
         }
-        return da.get() != null
+        p[url.substringAfterLast("/")] = (chaptersCount++).toString()
+        activity.runOnUiThread { activity.mBinding.dwh.apply { post { loadUrl(url) } } }
+        return true
     }
 
     fun waitChapterUrlsReady(): Boolean {

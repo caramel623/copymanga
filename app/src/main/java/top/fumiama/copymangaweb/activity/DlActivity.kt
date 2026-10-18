@@ -91,7 +91,11 @@ class DlActivity : ToolsBoxActivity() {
     }
 
     private fun dlThread(dlMethod: (i: ChapterToggleButton) -> Unit) {
-        sleep(10000)
+        var initialRemaining = 10_000L
+        while (initialRemaining > 0 && canDl) {
+            sleep(minOf(250L, initialRemaining))
+            initialRemaining -= 250L
+        }
         val selected = tbtnlist.filter { it.isChecked }
         for ((selectedIndex, i) in selected.withIndex()) {
             if (i.isChecked) dlMethod(i)
