@@ -41,6 +41,7 @@ class MangaDlTools(activity: DlActivity) {
         checkpointStore.pendingForComic(comicName).map { it.hash }.toSet()
 
     fun allocateChapterUrls(count: Int){
+        p.reset()
         imgUrlsList = arrayOfNulls(count)
         chaptersCount = 0
     }

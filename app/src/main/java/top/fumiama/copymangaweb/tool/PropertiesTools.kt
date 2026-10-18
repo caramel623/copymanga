@@ -21,6 +21,15 @@ class PropertiesTools(private val f: File):Properties() {
         }
         if(f.parentFile?.canWrite() != true) f.parentFile?.setWritable(true)
         if(f.parentFile?.canRead() != true) f.parentFile?.setReadable(true)
+        f.inputStream().use { loadFromXml(it) }
+    }
+
+    fun reset() {
+        cache.clear()
+        this.clear()
+        val o = f.outputStream()
+        this.storeToXML(o, "store")
+        o.close()
     }
 
     private fun createNew(f: File) {
