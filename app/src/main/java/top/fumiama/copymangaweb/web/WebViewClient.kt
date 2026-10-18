@@ -4,7 +4,6 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.util.Log
 import android.webkit.WebResourceRequest
-import android.webkit.WebResourceResponse
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.Toast
@@ -68,13 +67,5 @@ class WebViewClient(
                 }
             }
         }
-    }
-
-    override fun shouldInterceptRequest(
-        view: WebView?,
-        request: WebResourceRequest?
-    ): WebResourceResponse? {
-        request?.requestHeaders?.set("Access-Control-Allow-Origin", "*")
-        return super.shouldInterceptRequest(view, request)
     }
 }
