@@ -695,11 +695,6 @@ class ViewMangaActivity : ToolsBoxActivity() {
         var va: WeakReference<ViewMangaActivity>? = null
         var imgUrls = arrayOf<String>()
         var zipFile: File? = null
-        get() {
-            val re = field
-            if(field != null) field = null
-            return re
-        }
         var titleText = "Null"
         var nextChapterUrl: String? = null
         var previousChapterUrl: String? = null

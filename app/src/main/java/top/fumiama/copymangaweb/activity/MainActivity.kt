@@ -511,6 +511,7 @@ class MainActivity: ToolsBoxActivity() {
                     ViewMangaActivity.titleText = listChapter[0].substringBeforeLast(' ')
                     ViewMangaActivity.nextChapterUrl = listChapter[1].let { if(it == "null") null else it }
                     ViewMangaActivity.previousChapterUrl = listChapter[2].let { if(it == "null") null else it }
+                    ViewMangaActivity.zipFile = null
                     ViewMangaActivity.imgUrls = imgs
                     startActivity(Intent(this@MainActivity, ViewMangaActivity::class.java))
                 }
@@ -540,6 +541,7 @@ class MainActivity: ToolsBoxActivity() {
                 .ifBlank { chapterName }
             ViewMangaActivity.previousChapterUrl = previousChapterUrl.takeIf { it.isNotBlank() }
             ViewMangaActivity.nextChapterUrl = nextChapterUrl.takeIf { it.isNotBlank() }
+            ViewMangaActivity.zipFile = null
             ViewMangaActivity.imgUrls = arrayOf()
             readerStartedImmediately = true
             startActivity(Intent(this, ViewMangaActivity::class.java))
@@ -570,6 +572,7 @@ class MainActivity: ToolsBoxActivity() {
                 lines[1].let { if (it == "null") null else it },
                 lines[2].let { if (it == "null") null else it }
             )
+            ViewMangaActivity.zipFile = null
             ViewMangaActivity.imgUrls = arrayOf()
             if (readerStartedImmediately) {
                 readerStartedImmediately = false
@@ -588,6 +591,7 @@ class MainActivity: ToolsBoxActivity() {
                 ViewMangaActivity.titleText = lines[0].substringBeforeLast(' ')
                 ViewMangaActivity.nextChapterUrl = lines[1].let { if (it == "null") null else it }
                 ViewMangaActivity.previousChapterUrl = lines[2].let { if (it == "null") null else it }
+                ViewMangaActivity.zipFile = null
                 ViewMangaActivity.imgUrls = lines.drop(3).toTypedArray()
                 startActivity(Intent(this, ViewMangaActivity::class.java))
             }
