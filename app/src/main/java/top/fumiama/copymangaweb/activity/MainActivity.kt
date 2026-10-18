@@ -506,12 +506,12 @@ class MainActivity: ToolsBoxActivity() {
             val listChapter = content.split('\n')
             if (listChapter.size < 3) return@withContext
             if(!saveUrlsOnly) {
-                ViewMangaActivity.titleText = listChapter[0].substringBeforeLast(' ')
-                ViewMangaActivity.nextChapterUrl = listChapter[1].let { if(it == "null") null else it }
-                ViewMangaActivity.previousChapterUrl = listChapter[2].let { if(it == "null") null else it }
-                ViewMangaActivity.imgUrls = arrayOf()
-                for(i in 3 until listChapter.size) ViewMangaActivity.imgUrls += listChapter[i]
+                val imgs = listChapter.drop(3).toTypedArray()
                 withContext(Dispatchers.Main) {
+                    ViewMangaActivity.titleText = listChapter[0].substringBeforeLast(' ')
+                    ViewMangaActivity.nextChapterUrl = listChapter[1].let { if(it == "null") null else it }
+                    ViewMangaActivity.previousChapterUrl = listChapter[2].let { if(it == "null") null else it }
+                    ViewMangaActivity.imgUrls = imgs
                     startActivity(Intent(this@MainActivity, ViewMangaActivity::class.java))
                 }
             } else {
@@ -564,13 +564,13 @@ class MainActivity: ToolsBoxActivity() {
     fun startViewManga(header: String) {
         val lines = header.split('\n').filter { it.isNotBlank() }
         if (lines.size < 3 || saveUrlsOnly) return
-        ViewMangaActivity.updateOnlineChapterHeader(
-            lines[0].substringBeforeLast(' '),
-            lines[1].let { if (it == "null") null else it },
-            lines[2].let { if (it == "null") null else it }
-        )
-        ViewMangaActivity.imgUrls = arrayOf()
         runOnUiThread {
+            ViewMangaActivity.updateOnlineChapterHeader(
+                lines[0].substringBeforeLast(' '),
+                lines[1].let { if (it == "null") null else it },
+                lines[2].let { if (it == "null") null else it }
+            )
+            ViewMangaActivity.imgUrls = arrayOf()
             if (readerStartedImmediately) {
                 readerStartedImmediately = false
             } else {
@@ -584,15 +584,15 @@ class MainActivity: ToolsBoxActivity() {
         val lines = content.split('\n').filter { it.isNotBlank() }
         if (first) {
             if (lines.size < 4) return
-            ViewMangaActivity.titleText = lines[0].substringBeforeLast(' ')
-            ViewMangaActivity.nextChapterUrl = lines[1].let { if (it == "null") null else it }
-            ViewMangaActivity.previousChapterUrl = lines[2].let { if (it == "null") null else it }
-            ViewMangaActivity.imgUrls = lines.drop(3).toTypedArray()
             runOnUiThread {
+                ViewMangaActivity.titleText = lines[0].substringBeforeLast(' ')
+                ViewMangaActivity.nextChapterUrl = lines[1].let { if (it == "null") null else it }
+                ViewMangaActivity.previousChapterUrl = lines[2].let { if (it == "null") null else it }
+                ViewMangaActivity.imgUrls = lines.drop(3).toTypedArray()
                 startActivity(Intent(this, ViewMangaActivity::class.java))
             }
         } else {
-            ViewMangaActivity.appendOnlineImages(lines.toTypedArray(), finished)
+            runOnUiThread { ViewMangaActivity.appendOnlineImages(lines.toTypedArray(), finished) }
         }
     }
 
