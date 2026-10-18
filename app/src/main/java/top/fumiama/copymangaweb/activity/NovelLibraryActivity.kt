@@ -27,10 +27,11 @@ class NovelLibraryActivity : Activity() {
 
     private fun kotlinx.coroutines.CoroutineScope.launchRefresh() = launch {
         for (record in NovelShelfStore(this@NovelLibraryActivity).list()) {
-            val book = withContext(kotlinx.coroutines.Dispatchers.IO) {
-                runCatching { top.fumiama.copymangaweb.data.NovelRepository(this@NovelLibraryActivity).loadBook(record.slug) }.getOrNull()
-            } ?: continue
-            NovelShelfStore(this@NovelLibraryActivity).updateMetadata(book.slug, book.name, book.lastUpdated, book.cover)
+            withContext(kotlinx.coroutines.Dispatchers.IO) {
+                runCatching { top.fumiama.copymangaweb.data.NovelRepository(this@NovelLibraryActivity).loadBook(record.slug) }
+                    .getOrNull()
+                    ?.let { NovelShelfStore(this@NovelLibraryActivity).updateMetadata(it.slug, it.name, it.lastUpdated, it.cover) }
+            }
         }
         render()
     }

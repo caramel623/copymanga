@@ -73,9 +73,11 @@ class DlListActivity: Activity() {
                 val chosenFile = File(cd, it[position])
                 AlertDialog.Builder(this)
                     .setIcon(R.drawable.ic_launcher_foreground).setMessage("在此執行刪除/查錯?")
-                    .setTitle("提示").setPositiveButton("刪除"){ _, _ ->
-                        if(chosenFile.exists()) handler?.obtainMessage(2, chosenFile)?.sendToTarget()       //call rmrf
-                        handler?.obtainMessage(3, cd)?.sendToTarget()       //call scanFile
+                    .setTitle("提示")                    .setPositiveButton("刪除"){ _, _ ->
+                        Thread {
+                            if(chosenFile.exists()) rmrf(chosenFile)
+                            runOnUiThread { scanFile(cd) }
+                        }.start()
                     }.setNegativeButton(android.R.string.cancel){_, _ ->}
                     .setNeutralButton("查錯"){_, _ -> handler?.obtainMessage(1, chosenFile)?.sendToTarget()}  //call checkDir
                     .show()
@@ -94,10 +96,15 @@ class DlListActivity: Activity() {
     }
 
     fun checkDir(f: File){
-        nullZipDirStr = emptyArray()
-        findNullWebpZipFileInDir(f)
-        if(nullZipDirStr.isNotEmpty()) showErrorZip(nullZipDirStr.joinToString("\n"))
-        else Toast.makeText(this, "未發現錯誤", Toast.LENGTH_SHORT).show()
+        Thread {
+            nullZipDirStr = emptyArray()
+            findNullWebpZipFileInDir(f)
+            val found = nullZipDirStr
+            runOnUiThread {
+                if(found.isNotEmpty()) showErrorZip(found.joinToString("\n"))
+                else Toast.makeText(this, "未發現錯誤", Toast.LENGTH_SHORT).show()
+            }
+        }.start()
     }
 
     private fun callDownloadActivity(jsonFile: File){
@@ -139,7 +146,7 @@ class DlListActivity: Activity() {
                 re
             }
         } catch (e: Exception) {
-            Toast.makeText(this, "讀取${f.name}錯誤!", Toast.LENGTH_SHORT).show()
+            runOnUiThread { Toast.makeText(this, "讀取${f.name}錯誤!", Toast.LENGTH_SHORT).show() }
             true
         }
     }
