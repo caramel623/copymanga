@@ -29,7 +29,6 @@ import top.fumiama.copymangaweb.tool.ChapterNavigationStore
 import top.fumiama.copymangaweb.tool.PropertiesTools
 import top.fumiama.copymangaweb.tool.MangaDlTools.Companion.wmdlt
 import top.fumiama.copymangaweb.tool.SetDraggable
-import top.fumiama.copymangaweb.tool.Updater
 import top.fumiama.copymangaweb.tool.SiteConfig
 import top.fumiama.copymangaweb.web.JS
 import top.fumiama.copymangaweb.web.JSHidden
@@ -270,12 +269,6 @@ class MainActivity: ToolsBoxActivity() {
                 return@let
             }
 
-            lifecycleScope.launch {
-                withContext(Dispatchers.IO) {
-                    goCheckUpdate(false)
-                }
-            }
-
             if (BuildConfig.DEBUG) WebView.setWebContentsDebuggingEnabled(true)
             mBinding.w.apply { post {
                 setBackgroundColor(webBackgroundColor())
@@ -388,15 +381,6 @@ class MainActivity: ToolsBoxActivity() {
                 uploadMessageAboveL = null
             }
         }
-    }
-
-    private suspend fun goCheckUpdate(ignoreSkip: Boolean) {
-        Updater(
-            WeakReference(this),
-            toolsBox,
-            ignoreSkip,
-            getPreferences(MODE_PRIVATE).getInt("skipVersion", 0)
-        ).check(BuildConfig.VERSION_CODE)
     }
 
     fun loadHiddenUrl(u: String) {
