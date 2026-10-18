@@ -60,8 +60,9 @@ class JSHidden(private val webView: WeakReference<JSWebView>) {
     }
     @JavascriptInterface
     fun setTitle(title:String){
-        Log.d("MyJSH", "Set title: $title")
-        DlActivity.comicName = title
+        val safeTitle = title.replace(Regex("[\\/:*?\"<>|]"), "_")
+        Log.d("MyJSH", "Set title: $safeTitle")
+        DlActivity.comicName = safeTitle
     }
     @JavascriptInterface
     fun setFab(content: String){
