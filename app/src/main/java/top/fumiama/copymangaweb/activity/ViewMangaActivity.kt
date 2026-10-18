@@ -255,14 +255,13 @@ class ViewMangaActivity : ToolsBoxActivity() {
     }
 
     private fun getImgBitmap(position: Int): Bitmap? {
-        if (position >= count || position < 0) return null
-        else {
-            val zip = ZipFile(mangaZip)
+        if (position >= count || position < 0 || mangaZip == null) return null
+        return ZipFile(mangaZip).use { zip ->
             val entry = zip.getEntry("%03d.JPG".format(position + 1))
                 ?: zip.getEntry("${position}.webp")
                 ?: zip.getEntry("${position}.JPG")
                 ?: return null
-            return BitmapFactory.decodeStream(zip.getInputStream(entry))
+            BitmapFactory.decodeStream(zip.getInputStream(entry))
         }
     }
 
