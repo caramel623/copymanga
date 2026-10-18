@@ -379,7 +379,7 @@ class ViewMangaActivity : ToolsBoxActivity() {
                 override fun onProgressChanged(p0: SeekBar?, p1: Int, isHuman: Boolean) {
                     if (isHuman) {
                         val target = ((p1 * count) / 100).coerceIn(1, count.coerceAtLeast(1))
-                        if (target != pageNum) setPageNumber(target)
+                        if (target != pageNum) pageNum = target
                     }
                 }
 
