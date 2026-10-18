@@ -276,7 +276,7 @@ class MainActivity: ToolsBoxActivity() {
                 }
             }
 
-            WebView.setWebContentsDebuggingEnabled(true)
+            if (BuildConfig.DEBUG) WebView.setWebContentsDebuggingEnabled(true)
             mBinding.w.apply { post {
                 setBackgroundColor(webBackgroundColor())
                 setWebViewClient("i.js")
