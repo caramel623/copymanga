@@ -12,7 +12,6 @@ import top.fumiama.copymangaweb.databinding.ActivityDlistBinding
 import top.fumiama.copymangaweb.handler.DlLHandler
 import top.fumiama.copymangaweb.tool.InsetsTools
 import java.io.File
-import java.util.regex.Pattern
 import java.util.zip.ZipInputStream
 
 class DlListActivity: Activity() {
@@ -161,18 +160,8 @@ class DlListActivity: Activity() {
         }
     }
 
-    private fun getFloat(oldString: String): Float {
-        val newString = StringBuffer()
-        var matcher = Pattern.compile("\\d+.+\\d+").matcher(oldString)
-        while (matcher.find()) newString.append(matcher.group())
-        //Log.d("MyDLL1", newString.toString())
-        if(newString.isEmpty()){
-            matcher = Pattern.compile("\\d").matcher(oldString)
-            while (matcher.find()) newString.append(matcher.group())
-        }
-        //Log.d("MyDLL2", newString.toString().toFloat().toString())
-        return if(newString.isEmpty()) 0f else newString.toString().toFloat()
-    }
+    private fun getFloat(oldString: String): Float =
+        oldString.filter { it.isDigit() }.toFloatOrNull() ?: 0f
 
     companion object{
         var currentDir: File? = null
