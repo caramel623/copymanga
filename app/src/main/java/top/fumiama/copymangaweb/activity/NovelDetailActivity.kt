@@ -28,6 +28,8 @@ import kotlinx.coroutines.withContext
 import top.fumiama.copymangaweb.data.NovelBook
 import top.fumiama.copymangaweb.data.NovelRepository
 import top.fumiama.copymangaweb.data.NovelVolume
+import top.fumiama.copymangaweb.tool.NovelDownloadStore
+import top.fumiama.copymangaweb.tool.NovelEpubDownloader
 import top.fumiama.copymangaweb.tool.NovelReadingStore
 import top.fumiama.copymangaweb.tool.NovelShelfRecord
 import top.fumiama.copymangaweb.tool.NovelShelfStore
@@ -44,6 +46,8 @@ class NovelDetailActivity : Activity() {
     private var appliedTheme = ""
     private var loadedBook: NovelBook? = null
     private var loadedVolumes: List<NovelVolume> = emptyList()
+    private var downloading = false
+    private var downloadButton: TextView? = null
     private val slug by lazy { intent.getStringExtra(EXTRA_SLUG).orEmpty() }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -165,6 +169,8 @@ class NovelDetailActivity : Activity() {
         content.addView(heading)
 
         val savedVolumeId = NovelReadingStore(this).find(slug)?.volumeId
+        val store = NovelDownloadStore(this)
+        val offlineIds = if (store.fileFor(slug) != null) store.recordFor(slug)?.volumeIds?.toSet().orEmpty() else emptySet()
         if (volumes.isEmpty()) {
             content.addView(text("目前沒有可閱讀的卷冊", 15f, palette.secondaryText).apply {
                 gravity = Gravity.CENTER
@@ -173,7 +179,7 @@ class NovelDetailActivity : Activity() {
         } else {
             volumes.forEach { volume ->
                 content.addView(
-                    createVolumeRow(book.name, volume, savedVolumeId == volume.id),
+                    createVolumeRow(book.name, volume, savedVolumeId == volume.id, volume.id in offlineIds),
                     LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
                         bottomMargin = dp(8)
                     }
@@ -208,6 +214,9 @@ class NovelDetailActivity : Activity() {
             gravity = Gravity.CENTER_VERTICAL
             setPadding(0, dp(14), 0, 0)
             addView(createShelfButton(book))
+            addView(createDownloadButton(book), LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
+            ).apply { marginStart = dp(10) })
         }
         addView(actions)
 
@@ -239,7 +248,68 @@ class NovelDetailActivity : Activity() {
         }
     }
 
-    private fun createVolumeRow(bookName: String, volume: NovelVolume, isLastRead: Boolean): LinearLayout =
+    private fun createDownloadButton(book: NovelBook): TextView = TextView(this).apply {
+        textSize = 14f
+        gravity = Gravity.CENTER
+        minHeight = dp(38)
+        setPadding(dp(16), 0, dp(16), 0)
+        isClickable = true
+        isFocusable = true
+        updateDownloadButton(this)
+        downloadButton = this
+        setOnClickListener {
+            val store = NovelDownloadStore(this@NovelDetailActivity)
+            when {
+                downloading -> {}
+                store.fileFor(book.slug) != null -> confirmDeleteDownload(book)
+                else -> startDownload(book)
+            }
+        }
+    }
+
+    private fun updateDownloadButton(button: TextView) {
+        val downloaded = NovelDownloadStore(this).fileFor(slug) != null
+        button.text = when {
+            downloading -> "⬇ 下載中…"
+            downloaded -> "✓ 已下載 EPUB"
+            else -> "⬇ 下載 EPUB"
+        }
+        button.setTextColor(if (downloaded) palette.accent else palette.buttonText)
+        button.background = selectableBackground(
+            if (downloaded) palette.accentSoft else palette.accent,
+            palette.ripple,
+            dp(19).toFloat(),
+            palette.accent
+        )
+    }
+
+    private fun startDownload(book: NovelBook) = scope.launch {
+        downloading = true
+        downloadButton?.let { updateDownloadButton(it) }
+        NovelEpubDownloader(this@NovelDetailActivity).download(book.slug) { done, total ->
+            runOnUiThread { if (!isFinishing) downloadButton?.text = "⬇ 下載中 $done/$total" }
+        }.onSuccess {
+            toast("已下載《${book.name}》EPUB，可離線閱讀")
+        }.onFailure {
+            if (!isFinishing) toast("下載失敗：${it.message}")
+        }
+        downloading = false
+        loadedBook?.let { render(it, loadedVolumes) }
+    }
+
+    private fun confirmDeleteDownload(book: NovelBook) {
+        android.app.AlertDialog.Builder(this)
+            .setTitle("刪除離線檔")
+            .setMessage("刪除《${book.name}》的 EPUB 離線檔？书架記錄不受影響。")
+            .setPositiveButton("刪除") { _, _ ->
+                NovelDownloadStore(this).removeDownload(book.slug)
+                loadedBook?.let { render(it, loadedVolumes) }
+            }
+            .setNegativeButton("取消", null)
+            .show()
+    }
+
+    private fun createVolumeRow(bookName: String, volume: NovelVolume, isLastRead: Boolean, isOffline: Boolean): LinearLayout =
         LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
@@ -261,6 +331,15 @@ class NovelDetailActivity : Activity() {
                 ellipsize = TextUtils.TruncateAt.END
             }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
 
+            if (isOffline) {
+                addView(text("離線", 11f, palette.secondaryText, bold = true).apply {
+                    gravity = Gravity.CENTER
+                    setPadding(dp(9), dp(4), dp(9), dp(4))
+                    background = roundedBackground(palette.selectedSurface, dp(12).toFloat())
+                }, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
+                    marginStart = dp(8)
+                })
+            }
             if (isLastRead) {
                 addView(text("上次閱讀", 11f, palette.accent, bold = true).apply {
                     gravity = Gravity.CENTER

@@ -18,6 +18,9 @@ import android.webkit.WebView
 import android.widget.*
 import kotlinx.coroutines.*
 import top.fumiama.copymangaweb.data.NovelRepository
+import top.fumiama.copymangaweb.tool.EpubChapterReader
+import top.fumiama.copymangaweb.tool.NovelChapterCodec
+import top.fumiama.copymangaweb.tool.NovelDownloadStore
 import top.fumiama.copymangaweb.tool.NovelReadingRecord
 import top.fumiama.copymangaweb.tool.NovelReadingStore
 import top.fumiama.copymangaweb.tool.PropertiesTools
@@ -136,24 +139,42 @@ class NovelReaderActivity : Activity() {
         addView(Button(this@NovelReaderActivity).apply { text = "底色"; setOnClickListener { cycleTheme() } }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
     }
 
+    private fun offlineChapterBody(): String? = runCatching {
+        val store = NovelDownloadStore(this)
+        val epub = store.fileFor(slug) ?: return null
+        val index = store.recordFor(slug)?.volumeIds?.indexOf(volumeId) ?: -1
+        if (index < 0) return null
+        val reader = EpubChapterReader(epub)
+        reader.readChapter(reader.chapterHrefs()[index])
+    }.getOrNull()
+
     private fun load() = scope.launch {
         runCatching {
             withContext(Dispatchers.IO) {
-                val repository = NovelRepository(this@NovelReaderActivity)
-                val metadata = repository.loadVolume(slug, volumeId)
-                metadata to repository.loadResource(metadata.address, metadata.encoding)
+                offlineChapterBody()?.let { stored ->
+                    Triple(
+                        if (NovelChapterCodec.isPlain(stored)) "offline-plain" else "offline-html",
+                        "", stored
+                    )
+                } ?: run {
+                    val repository = NovelRepository(this@NovelReaderActivity)
+                    val metadata = repository.loadVolume(slug, volumeId)
+                    val (contentType, body) = repository.loadResource(metadata.address, metadata.encoding)
+                    Triple(contentType, metadata.address, body)
+                }
             }
-        }.onSuccess { (metadata, resource) ->
+        }.onSuccess { (kind, base, originalBody) ->
             progress.visibility = View.GONE
-            val (contentType, originalBody) = resource
-            val body = withContext(Dispatchers.Default) { toTraditionalIfEnabled(originalBody) }
+            val plain = if (kind == "offline-plain") NovelChapterCodec.toPlainText(originalBody) else originalBody
+            val body = withContext(Dispatchers.Default) { toTraditionalIfEnabled(plain) }
             val trimmed = body.trimStart()
-            val isHtml = contentType.contains("html") || trimmed.startsWith("<!doctype", true) || trimmed.startsWith("<html", true)
+            val isHtml = kind == "offline-html" || kind.contains("html") ||
+                trimmed.startsWith("<!doctype", true) || trimmed.startsWith("<html", true)
             ready = true; seek.isEnabled = true
             val savedY = if (intent.hasExtra("bookmark_y")) intent.getIntExtra("bookmark_y", 0) else NovelReadingStore(this@NovelReaderActivity).find(slug)?.takeIf { it.volumeId == volumeId }?.scrollY ?: 0
             if (isHtml) {
                 webView.visibility = View.VISIBLE
-                loadedHtml = metadata.address to body
+                loadedHtml = base to body
                 pendingY = savedY
                 loadStyledHtml()
             } else {
