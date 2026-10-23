@@ -21,8 +21,9 @@ class NovelDownloadStore(private val indexFile: File, private val novelsDir: Fil
         context.getExternalFilesDir("novels") ?: File(context.filesDir, "novels")
     )
 
-    fun epubFile(slug: String): File =
-        File(novelsDir, slug.replace(Regex("[^A-Za-z0-9._-]"), "_") + ".epub")
+    fun sanitizedSlug(slug: String): String = slug.replace(Regex("[^A-Za-z0-9._-]"), "_")
+
+    fun epubFile(slug: String): File = File(novelsDir, sanitizedSlug(slug) + ".epub")
 
     @Synchronized
     fun list(): List<NovelDownloadRecord> {
@@ -66,6 +67,7 @@ class NovelDownloadStore(private val indexFile: File, private val novelsDir: Fil
     private fun JSONArray?.toStringList(): List<String> =
         if (this == null) emptyList() else (0 until length()).map { optString(it) }
 
+    @Synchronized
     private fun write(records: List<NovelDownloadRecord>) {
         val array = JSONArray()
         records.forEach { item ->
@@ -78,6 +80,9 @@ class NovelDownloadStore(private val indexFile: File, private val novelsDir: Fil
         }
         val tmp = File(indexFile.parentFile, "${indexFile.name}.tmp")
         tmp.writeText(array.toString())
-        if (!tmp.renameTo(indexFile)) indexFile.writeText(tmp.readText())
+        if (!tmp.renameTo(indexFile)) {
+            indexFile.writeText(tmp.readText())
+            tmp.delete()
+        }
     }
 }

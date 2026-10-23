@@ -283,18 +283,20 @@ class NovelDetailActivity : Activity() {
         )
     }
 
-    private fun startDownload(book: NovelBook) = scope.launch {
+    private fun startDownload(book: NovelBook) {
         downloading = true
         downloadButton?.let { updateDownloadButton(it) }
-        NovelEpubDownloader(this@NovelDetailActivity).download(book.slug) { done, total ->
-            runOnUiThread { if (!isFinishing) downloadButton?.text = "⬇ 下載中 $done/$total" }
-        }.onSuccess {
-            toast("已下載《${book.name}》EPUB，可離線閱讀")
-        }.onFailure {
-            if (!isFinishing) toast("下載失敗：${it.message}")
+        scope.launch {
+            NovelEpubDownloader(this@NovelDetailActivity).download(book.slug) { done, total ->
+                runOnUiThread { if (!isFinishing) downloadButton?.text = "⬇ 下載中 $done/$total" }
+            }.onSuccess {
+                toast("已下載《${book.name}》EPUB，可離線閱讀")
+            }.onFailure {
+                if (!isFinishing) toast("下載失敗：${it.message}")
+            }
+            downloading = false
+            loadedBook?.let { render(it, loadedVolumes) }
         }
-        downloading = false
-        loadedBook?.let { render(it, loadedVolumes) }
     }
 
     private fun confirmDeleteDownload(book: NovelBook) {

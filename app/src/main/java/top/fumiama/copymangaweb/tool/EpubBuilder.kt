@@ -31,15 +31,21 @@ class EpubBuilder(
             throw IOException("Unable to remove partial EPUB: $part")
         }
         zip = ZipOutputStream(FileOutputStream(part))
-        val mimetype = "application/epub+zip".toByteArray(StandardCharsets.UTF_8)
-        val crc = CRC32().apply { update(mimetype) }
-        zip.putNextEntry(ZipEntry("mimetype").apply {
-            method = ZipEntry.STORED
-            size = mimetype.size.toLong()
-            this.crc = crc.value
-        })
-        zip.write(mimetype)
-        zip.closeEntry()
+        try {
+            val mimetype = "application/epub+zip".toByteArray(StandardCharsets.UTF_8)
+            val crc = CRC32().apply { update(mimetype) }
+            zip.putNextEntry(ZipEntry("mimetype").apply {
+                method = ZipEntry.STORED
+                size = mimetype.size.toLong()
+                this.crc = crc.value
+            })
+            zip.write(mimetype)
+            zip.closeEntry()
+        } catch (t: Throwable) {
+            runCatching { zip.close() }
+            part.delete()
+            throw t
+        }
     }
 
     fun addChapter(href: String, title: String, bodyXhtml: String) {
@@ -108,7 +114,6 @@ class EpubBuilder(
         append("<metadata><dc:identifier id=\"bookid\">${escape(identifier)}</dc:identifier>")
         append("<dc:title>${escape(title)}</dc:title><dc:creator>${escape(author)}</dc:creator>")
         append("<dc:language>zh</dc:language></metadata><manifest>")
-        append("<item id=\"mimetype\" href=\"mimetype\" media-type=\"application/epub+zip\"/>")
         append("<item id=\"ncx\" href=\"nav.ncx\" media-type=\"application/x-dtbncx+xml\"/>")
         chapters.forEachIndexed { index, chapter ->
             append("<item id=\"chapter${index + 1}\" href=\"${escape(chapter.href)}\" " +

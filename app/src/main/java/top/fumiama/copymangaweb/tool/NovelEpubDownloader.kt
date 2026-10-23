@@ -55,19 +55,25 @@ class NovelEpubDownloader(private val context: Context) {
         val book = repository.loadBook(slug)
         val volumes = repository.loadVolumes(slug)
         require(volumes.isNotEmpty()) { "目前沒有可下載的卷冊" }
-        val partsDir = File(context.filesDir, "novel_parts/$slug")
-        if (store.recordFor(slug) != null) partsDir.deleteRecursively()
+        val partsDir = File(context.filesDir, "novel_parts/${store.sanitizedSlug(slug)}")
         partsDir.mkdirs()
         val builder = EpubBuilder(store.epubFile(slug), "copymanga:$slug", book.name, book.author)
         return try {
             volumes.forEachIndexed { index, volume ->
                 currentCoroutineContext().ensureActive()
-                val href = String.format("ch%04d.xhtml", index + 1)
+                val href = "ch${(index + 1).toString().padStart(4, '0')}.xhtml"
                 val partFile = File(partsDir, "$href.txt")
                 val stored = if (partFile.isFile) partFile.readText() else {
                     val metadata = repository.loadVolume(slug, volume.id)
                     val (contentType, body) = repository.loadResource(metadata.address, metadata.encoding)
-                    NovelChapterCodec.toStored(contentType, body).also { partFile.writeText(it) }
+                    NovelChapterCodec.toStored(contentType, body).also {
+                        val tmp = File(partFile.parentFile, "${partFile.name}.tmp")
+                        tmp.writeText(it)
+                        if (!tmp.renameTo(partFile)) {
+                            partFile.writeText(it)
+                            tmp.delete()
+                        }
+                    }
                 }
                 builder.addChapter(href, volume.name, stored)
                 onProgress(index + 1, volumes.size)
