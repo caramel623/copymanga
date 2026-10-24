@@ -57,11 +57,12 @@ class NovelEpubDownloader(private val context: Context) {
         require(volumes.isNotEmpty()) { "目前沒有可下載的卷冊" }
         val partsDir = File(context.filesDir, "novel_parts/${store.sanitizedSlug(slug)}")
         val traditional = NovelTraditional.enabled(PropertiesTools(File("${context.filesDir}/settings.properties")))
-        NovelDownloadParts.prepare(partsDir, traditional)
+        NovelDownloadParts.prepare(partsDir, traditional, volumes.map { it.id })
         val epubTitle = if (traditional) NovelTraditional.convert(book.name) else book.name
         val epubAuthor = if (traditional) NovelTraditional.convert(book.author) else book.author
         val chapterTitles = volumes.map { if (traditional) NovelTraditional.convert(it.name) else it.name }
         val builder = EpubBuilder(store.epubFile(slug), "copymanga:$slug", epubTitle, epubAuthor)
+        var epubFinalized = false
         return try {
             volumes.forEachIndexed { index, volume ->
                 currentCoroutineContext().ensureActive()
@@ -84,6 +85,8 @@ class NovelEpubDownloader(private val context: Context) {
                 onProgress(index + 1, volumes.size)
             }
             val file = builder.finish()
+            epubFinalized = true
+            check(partsDir.deleteRecursively()) { "Unable to remove completed novel download parts: $partsDir" }
             store.markDownloaded(
                 NovelDownloadRecord(
                     slug, epubTitle, epubAuthor, file.length(), System.currentTimeMillis(),
@@ -92,10 +95,10 @@ class NovelEpubDownloader(private val context: Context) {
                     traditional
                 )
             )
-            partsDir.deleteRecursively()
             file
         } catch (t: Throwable) {
             builder.abort()
+            if (epubFinalized) store.epubFile(slug).delete()
             throw t
         }
     }

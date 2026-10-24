@@ -26,10 +26,9 @@ class NovelDownloadStore(private val indexFile: File, private val novelsDir: Fil
 
     fun epubFile(slug: String): File = File(novelsDir, sanitizedSlug(slug) + ".epub")
 
-    @Synchronized
-    fun list(): List<NovelDownloadRecord> {
-        if (!indexFile.isFile) return emptyList()
-        return runCatching {
+    fun list(): List<NovelDownloadRecord> = synchronized(lock) {
+        if (!indexFile.isFile) return@synchronized emptyList()
+        runCatching {
             val array = JSONArray(indexFile.readText())
             (0 until array.length()).map { index ->
                 val item = array.getJSONObject(index)
@@ -46,27 +45,26 @@ class NovelDownloadStore(private val indexFile: File, private val novelsDir: Fil
 
     fun recordFor(slug: String): NovelDownloadRecord? = list().firstOrNull { it.slug == slug }
 
-    fun fileFor(slug: String): File? = recordFor(slug)?.let(::fileFor)
-
-    @Synchronized
-    fun fileFor(record: NovelDownloadRecord): File? {
-        val file = epubFile(record.slug)
-        if (file.isFile) return file
-        removeRecord(record.slug)
-        return null
+    fun fileFor(slug: String): File? = synchronized(lock) {
+        recordFor(slug)?.let(::fileFor)
     }
 
-    @Synchronized
-    fun markDownloaded(record: NovelDownloadRecord) =
-        write(list().filterNot { it.slug == record.slug } + record)
+    fun fileFor(record: NovelDownloadRecord): File? = synchronized(lock) {
+        val file = epubFile(record.slug)
+        if (file.isFile) return@synchronized file
+        removeRecord(record.slug)
+        null
+    }
 
-    @Synchronized
-    fun removeDownload(slug: String) {
+    fun markDownloaded(record: NovelDownloadRecord) = synchronized(lock) {
+        write(list().filterNot { it.slug == record.slug } + record)
+    }
+
+    fun removeDownload(slug: String) = synchronized(lock) {
         epubFile(slug).delete()
         removeRecord(slug)
     }
 
-    @Synchronized
     private fun removeRecord(slug: String) = write(list().filterNot { it.slug == slug })
 
     private fun JSONArray?.toStringList(): List<String> =
@@ -90,5 +88,9 @@ class NovelDownloadStore(private val indexFile: File, private val novelsDir: Fil
             indexFile.writeText(tmp.readText())
             tmp.delete()
         }
+    }
+
+    companion object {
+        private val lock = Any()
     }
 }

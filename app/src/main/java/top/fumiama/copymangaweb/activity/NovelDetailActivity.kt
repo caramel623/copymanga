@@ -28,6 +28,7 @@ import kotlinx.coroutines.withContext
 import top.fumiama.copymangaweb.data.NovelBook
 import top.fumiama.copymangaweb.data.NovelRepository
 import top.fumiama.copymangaweb.data.NovelVolume
+import top.fumiama.copymangaweb.tool.NovelDownloadRecord
 import top.fumiama.copymangaweb.tool.NovelDownloadStore
 import top.fumiama.copymangaweb.tool.NovelEpubDownloader
 import top.fumiama.copymangaweb.tool.NovelReadingStore
@@ -46,6 +47,7 @@ class NovelDetailActivity : Activity() {
     private var appliedTheme = ""
     private var loadedBook: NovelBook? = null
     private var loadedVolumes: List<NovelVolume> = emptyList()
+    private var downloadRecord: NovelDownloadRecord? = null
     private var downloading = false
     private var downloadButton: TextView? = null
     private val slug by lazy { intent.getStringExtra(EXTRA_SLUG).orEmpty() }
@@ -75,7 +77,12 @@ class NovelDetailActivity : Activity() {
             root.setBackgroundColor(palette.background)
             progress.indeterminateTintList = ColorStateList.valueOf(palette.accent)
         }
-        loadedBook?.let { render(it, loadedVolumes) }
+        loadedBook?.let { book ->
+            scope.launch {
+                downloadRecord = withContext(Dispatchers.IO) { localDownloadRecord(book.slug) }
+                loadedBook?.let { render(it, loadedVolumes) }
+            }
+        }
     }
 
     private fun buildPage() {
@@ -138,13 +145,15 @@ class NovelDetailActivity : Activity() {
     private fun load() = scope.launch {
         runCatching {
             withContext(Dispatchers.IO) {
-                NovelRepository(this@NovelDetailActivity).let {
-                    it.loadBook(slug) to it.loadVolumes(slug)
-                }
+                val repository = NovelRepository(this@NovelDetailActivity)
+                val book = repository.loadBook(slug)
+                val volumes = repository.loadVolumes(slug)
+                Triple(book, volumes, localDownloadRecord(slug))
             }
-        }.onSuccess { (book, volumes) ->
+        }.onSuccess { (book, volumes, record) ->
             loadedBook = book
             loadedVolumes = volumes
+            downloadRecord = record
             progress.visibility = View.GONE
             render(book, volumes)
         }.onFailure {
@@ -169,8 +178,7 @@ class NovelDetailActivity : Activity() {
         content.addView(heading)
 
         val savedVolumeId = NovelReadingStore(this).find(slug)?.volumeId
-        val store = NovelDownloadStore(this)
-        val offlineIds = if (store.fileFor(slug) != null) store.recordFor(slug)?.volumeIds?.toSet().orEmpty() else emptySet()
+        val offlineIds = downloadRecord?.volumeIds?.toSet().orEmpty()
         if (volumes.isEmpty()) {
             content.addView(text("目前沒有可閱讀的卷冊", 15f, palette.secondaryText).apply {
                 gravity = Gravity.CENTER
@@ -258,17 +266,16 @@ class NovelDetailActivity : Activity() {
         updateDownloadButton(this)
         downloadButton = this
         setOnClickListener {
-            val store = NovelDownloadStore(this@NovelDetailActivity)
             when {
                 downloading -> {}
-                store.fileFor(book.slug) != null -> confirmDeleteDownload(book)
+                downloadRecord != null -> confirmDeleteDownload(book)
                 else -> startDownload(book)
             }
         }
     }
 
     private fun updateDownloadButton(button: TextView) {
-        val downloaded = NovelDownloadStore(this).fileFor(slug) != null
+        val downloaded = downloadRecord != null
         button.text = when {
             downloading -> "⬇ 下載中…"
             downloaded -> "✓ 已下載 EPUB"
@@ -287,9 +294,13 @@ class NovelDetailActivity : Activity() {
         downloading = true
         downloadButton?.let { updateDownloadButton(it) }
         scope.launch {
-            NovelEpubDownloader(this@NovelDetailActivity).download(book.slug) { done, total ->
+            val result = NovelEpubDownloader(this@NovelDetailActivity).download(book.slug) { done, total ->
                 runOnUiThread { if (!isFinishing) downloadButton?.text = "⬇ 下載中 $done/$total" }
-            }.onSuccess {
+            }
+            if (result.isSuccess) {
+                downloadRecord = withContext(Dispatchers.IO) { localDownloadRecord(book.slug) }
+            }
+            result.onSuccess {
                 toast("已下載《${book.name}》EPUB，可離線閱讀")
             }.onFailure {
                 if (!isFinishing) toast("下載失敗：${it.message}")
@@ -304,11 +315,19 @@ class NovelDetailActivity : Activity() {
             .setTitle("刪除離線檔")
             .setMessage("刪除《${book.name}》的 EPUB 離線檔？書架記錄不受影響。")
             .setPositiveButton("刪除") { _, _ ->
-                NovelDownloadStore(this).removeDownload(book.slug)
-                loadedBook?.let { render(it, loadedVolumes) }
+                scope.launch {
+                    withContext(Dispatchers.IO) { NovelDownloadStore(this@NovelDetailActivity).removeDownload(book.slug) }
+                    downloadRecord = null
+                    loadedBook?.let { render(it, loadedVolumes) }
+                }
             }
             .setNegativeButton("取消", null)
             .show()
+    }
+
+    private fun localDownloadRecord(bookSlug: String): NovelDownloadRecord? {
+        val store = NovelDownloadStore(this)
+        return store.recordFor(bookSlug)?.takeIf { store.fileFor(it) != null }
     }
 
     private fun createVolumeRow(bookName: String, volume: NovelVolume, isLastRead: Boolean, isOffline: Boolean): LinearLayout =
