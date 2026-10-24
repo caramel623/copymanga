@@ -55,7 +55,10 @@ class NovelShelfStore(context: Context) {
         file.let { target ->
             val tmp = File(target.parentFile, "${target.name}.tmp")
             tmp.writeText(array.toString())
-            if (!tmp.renameTo(target)) target.writeText(tmp.readText())
+            if (!tmp.renameTo(target)) {
+                target.writeText(tmp.readText())
+                tmp.delete()
+            }
         }
     }
 
