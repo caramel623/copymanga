@@ -17,7 +17,7 @@ object NovelDownloadParts {
             val tmp = File(directory, "${marker.name}.tmp")
             tmp.writeText(expectedMode)
             if (!tmp.renameTo(marker)) {
-                marker.writeText(tmp.readText())
+                marker.writeText(expectedMode)
                 tmp.delete()
             }
         }
