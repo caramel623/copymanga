@@ -20,6 +20,7 @@ import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
@@ -38,11 +39,16 @@ import top.fumiama.copymangaweb.tool.PropertiesTools
 import java.io.File
 
 class NovelDetailActivity : Activity() {
+    private data class DetailState(
+        val downloadRecord: NovelDownloadRecord?,
+        val lastReadVolumeId: String?,
+        val inShelf: Boolean
+    )
+
     private data class LoadedDetail(
         val book: NovelBook,
         val volumes: List<NovelVolume>,
-        val downloadRecord: NovelDownloadRecord?,
-        val lastReadVolumeId: String?
+        val state: DetailState
     )
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
@@ -56,7 +62,10 @@ class NovelDetailActivity : Activity() {
     private var loadedVolumes: List<NovelVolume> = emptyList()
     private var downloadRecord: NovelDownloadRecord? = null
     private var lastReadVolumeId: String? = null
+    private var inShelf = false
     private var downloading = false
+    private var deletingDownload = false
+    private var stateVersion = 0
     private var downloadButton: TextView? = null
     private val slug by lazy { intent.getStringExtra(EXTRA_SLUG).orEmpty() }
 
@@ -86,12 +95,25 @@ class NovelDetailActivity : Activity() {
             progress.indeterminateTintList = ColorStateList.valueOf(palette.accent)
         }
         loadedBook?.let { book ->
+            val version = stateVersion
             scope.launch {
-                val state = withContext(Dispatchers.IO) {
-                    localDownloadRecord(book.slug) to NovelReadingStore(this@NovelDetailActivity).find(slug)?.volumeId
+                val state = try {
+                    withContext(Dispatchers.IO) {
+                        DetailState(
+                            localDownloadRecord(book.slug),
+                            NovelReadingStore(this@NovelDetailActivity).find(slug)?.volumeId,
+                            NovelShelfStore(this@NovelDetailActivity).contains(slug)
+                        )
+                    }
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (_: Exception) {
+                    return@launch
                 }
-                downloadRecord = state.first
-                lastReadVolumeId = state.second
+                if (version != stateVersion || downloading || deletingDownload) return@launch
+                downloadRecord = state.downloadRecord
+                lastReadVolumeId = state.lastReadVolumeId
+                inShelf = state.inShelf
                 loadedBook?.let { render(it, loadedVolumes) }
             }
         }
@@ -155,28 +177,35 @@ class NovelDetailActivity : Activity() {
     }
 
     private fun load() = scope.launch {
-        runCatching {
+        val detail = try {
             withContext(Dispatchers.IO) {
                 val repository = NovelRepository(this@NovelDetailActivity)
                 val book = repository.loadBook(slug)
                 val volumes = repository.loadVolumes(slug)
-                NovelShelfStore(this@NovelDetailActivity).updateMetadata(book.slug, book.name, book.lastUpdated, book.cover)
+                val shelf = NovelShelfStore(this@NovelDetailActivity)
+                shelf.updateMetadata(book.slug, book.name, book.lastUpdated, book.cover)
                 LoadedDetail(
-                    book, volumes, localDownloadRecord(slug),
-                    NovelReadingStore(this@NovelDetailActivity).find(slug)?.volumeId
+                    book, volumes, DetailState(
+                        localDownloadRecord(slug),
+                        NovelReadingStore(this@NovelDetailActivity).find(slug)?.volumeId,
+                        shelf.contains(slug)
+                    )
                 )
             }
-        }.onSuccess { detail ->
-            loadedBook = detail.book
-            loadedVolumes = detail.volumes
-            downloadRecord = detail.downloadRecord
-            lastReadVolumeId = detail.lastReadVolumeId
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (error: Exception) {
             progress.visibility = View.GONE
-            render(detail.book, detail.volumes)
-        }.onFailure {
-            progress.visibility = View.GONE
-            toast("載入小說目錄失敗：${it.message}")
+            toast("載入小說目錄失敗：${error.message}")
+            return@launch
         }
+        loadedBook = detail.book
+        loadedVolumes = detail.volumes
+        downloadRecord = detail.state.downloadRecord
+        lastReadVolumeId = detail.state.lastReadVolumeId
+        inShelf = detail.state.inShelf
+        progress.visibility = View.GONE
+        render(detail.book, detail.volumes)
     }
 
     private fun render(book: NovelBook, volumes: List<NovelVolume>) {
@@ -262,12 +291,34 @@ class NovelDetailActivity : Activity() {
         setPadding(dp(16), 0, dp(16), 0)
         isClickable = true
         isFocusable = true
-        updateShelfButton(this, book.slug)
+        val button = this
+        updateShelfButton(button)
         setOnClickListener {
-            val shelf = NovelShelfStore(this@NovelDetailActivity)
-            if (shelf.contains(book.slug)) shelf.remove(book.slug)
-            else shelf.add(NovelShelfRecord(book.slug, book.name, book.lastUpdated, System.currentTimeMillis(), book.cover))
-            updateShelfButton(this, book.slug)
+            if (!button.isEnabled) return@setOnClickListener
+            button.isEnabled = false
+            stateVersion++
+            scope.launch {
+                try {
+                    inShelf = withContext(Dispatchers.IO) {
+                        val shelf = NovelShelfStore(this@NovelDetailActivity)
+                        if (shelf.contains(book.slug)) {
+                            shelf.remove(book.slug)
+                            false
+                        } else {
+                            shelf.add(NovelShelfRecord(book.slug, book.name, book.lastUpdated, System.currentTimeMillis(), book.cover))
+                            true
+                        }
+                    }
+                    stateVersion++
+                    updateShelfButton(button)
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (error: Exception) {
+                    toast("更新書架失敗：${error.message}")
+                } finally {
+                    if (!isFinishing) button.isEnabled = true
+                }
+            }
         }
     }
 
@@ -282,7 +333,7 @@ class NovelDetailActivity : Activity() {
         downloadButton = this
         setOnClickListener {
             when {
-                downloading -> {}
+                downloading || deletingDownload -> {}
                 downloadRecord != null -> confirmDeleteDownload(book)
                 else -> startDownload(book)
             }
@@ -292,6 +343,7 @@ class NovelDetailActivity : Activity() {
     private fun updateDownloadButton(button: TextView) {
         val downloaded = downloadRecord != null
         button.text = when {
+            deletingDownload -> "刪除中…"
             downloading -> "⬇ 下載中…"
             downloaded -> "✓ 已下載 EPUB"
             else -> "⬇ 下載 EPUB"
@@ -306,6 +358,7 @@ class NovelDetailActivity : Activity() {
     }
 
     private fun startDownload(book: NovelBook) {
+        stateVersion++
         downloading = true
         downloadButton?.let { updateDownloadButton(it) }
         scope.launch {
@@ -313,13 +366,20 @@ class NovelDetailActivity : Activity() {
                 runOnUiThread { if (!isFinishing) downloadButton?.text = "⬇ 下載中 $done/$total" }
             }
             if (result.isSuccess) {
-                downloadRecord = withContext(Dispatchers.IO) { localDownloadRecord(book.slug) }
+                downloadRecord = try {
+                    withContext(Dispatchers.IO) { localDownloadRecord(book.slug) }
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (_: Exception) {
+                    null
+                }
             }
             result.onSuccess {
                 toast("已下載《${book.name}》EPUB，可離線閱讀")
             }.onFailure {
                 if (!isFinishing) toast("下載失敗：${it.message}")
             }
+            stateVersion++
             downloading = false
             loadedBook?.let { render(it, loadedVolumes) }
         }
@@ -330,10 +390,22 @@ class NovelDetailActivity : Activity() {
             .setTitle("刪除離線檔")
             .setMessage("刪除《${book.name}》的 EPUB 離線檔？書架記錄不受影響。")
             .setPositiveButton("刪除") { _, _ ->
+                stateVersion++
+                deletingDownload = true
+                downloadButton?.let { updateDownloadButton(it) }
                 scope.launch {
-                    withContext(Dispatchers.IO) { NovelDownloadStore(this@NovelDetailActivity).removeDownload(book.slug) }
-                    downloadRecord = null
-                    loadedBook?.let { render(it, loadedVolumes) }
+                    try {
+                        withContext(Dispatchers.IO) { NovelDownloadStore(this@NovelDetailActivity).removeDownload(book.slug) }
+                        downloadRecord = null
+                        stateVersion++
+                    } catch (cancelled: CancellationException) {
+                        throw cancelled
+                    } catch (error: Exception) {
+                        toast("刪除離線檔失敗：${error.message}")
+                    } finally {
+                        deletingDownload = false
+                        loadedBook?.let { render(it, loadedVolumes) }
+                    }
                 }
             }
             .setNegativeButton("取消", null)
@@ -401,8 +473,7 @@ class NovelDetailActivity : Activity() {
         })
     }
 
-    private fun updateShelfButton(button: TextView, bookSlug: String) {
-        val inShelf = NovelShelfStore(this).contains(bookSlug)
+    private fun updateShelfButton(button: TextView) {
         button.text = if (inShelf) "✓ 已加入本地書架" else "＋ 加入本地書架"
         button.setTextColor(if (inShelf) palette.accent else palette.buttonText)
         button.background = selectableBackground(

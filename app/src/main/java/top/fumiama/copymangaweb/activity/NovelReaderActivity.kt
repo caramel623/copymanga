@@ -144,7 +144,8 @@ class NovelReaderActivity : Activity() {
         val kind: String,
         val base: String,
         val body: String,
-        val preConverted: Boolean = false
+        val preConverted: Boolean = false,
+        val scrollY: Int = 0
     )
 
     private fun offlineChapter(): ReaderChapter? {
@@ -160,43 +161,53 @@ class NovelReaderActivity : Activity() {
                 if (NovelChapterCodec.isPlain(body)) "offline-plain" else "offline-html",
                 "", body, record.traditional
             )
+        } catch (cancelled: CancellationException) {
+            throw cancelled
         } catch (_: Exception) {
             null
         }
     }
 
     private fun load() = scope.launch {
-        runCatching {
+        val bookmarkY = intent.getIntExtra("bookmark_y", 0).takeIf { intent.hasExtra("bookmark_y") }
+        val chapter = try {
             withContext(Dispatchers.IO) {
-                offlineChapter() ?: run {
+                val savedY = bookmarkY ?: NovelReadingStore(this@NovelReaderActivity).find(slug)
+                    ?.takeIf { it.volumeId == volumeId }?.scrollY ?: 0
+                offlineChapter()?.copy(scrollY = savedY) ?: run {
                     val repository = NovelRepository(this@NovelReaderActivity)
                     val metadata = repository.loadVolume(slug, volumeId)
                     val (contentType, body) = repository.loadResource(metadata.address, metadata.encoding)
-                    ReaderChapter(contentType, metadata.address, body)
+                    ReaderChapter(contentType, metadata.address, body, scrollY = savedY)
                 }
             }
-        }.onSuccess { (kind, base, originalBody, preConverted) ->
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (error: Exception) {
             progress.visibility = View.GONE
-            val plain = if (kind == "offline-plain") NovelChapterCodec.toPlainText(originalBody) else originalBody
-            val body = withContext(Dispatchers.Default) {
-                if (preConverted) plain else toTraditionalIfEnabled(plain)
-            }
-            val trimmed = body.trimStart()
-            val isHtml = kind == "offline-html" || kind.contains("html") ||
-                trimmed.startsWith("<!doctype", true) || trimmed.startsWith("<html", true)
-            ready = true; seek.isEnabled = true
-            val savedY = if (intent.hasExtra("bookmark_y")) intent.getIntExtra("bookmark_y", 0) else NovelReadingStore(this@NovelReaderActivity).find(slug)?.takeIf { it.volumeId == volumeId }?.scrollY ?: 0
-            if (isHtml) {
-                webView.visibility = View.VISIBLE
-                loadedHtml = base to body
-                pendingY = savedY
-                loadStyledHtml()
-            } else {
-                scroll.visibility = View.VISIBLE
-                textView.text = body.replace("\r\n", "\n")
-                scroll.post { scroll.scrollTo(0, savedY); updateProgress() }
-            }
-        }.onFailure { progress.visibility = View.GONE; Toast.makeText(this@NovelReaderActivity, "載入正文失敗：${it.message}", Toast.LENGTH_LONG).show() }
+            Toast.makeText(this@NovelReaderActivity, "載入正文失敗：${error.message}", Toast.LENGTH_LONG).show()
+            return@launch
+        }
+        progress.visibility = View.GONE
+        val (kind, base, originalBody, preConverted, savedY) = chapter
+        val plain = if (kind == "offline-plain") NovelChapterCodec.toPlainText(originalBody) else originalBody
+        val body = withContext(Dispatchers.Default) {
+            if (preConverted) plain else toTraditionalIfEnabled(plain)
+        }
+        val trimmed = body.trimStart()
+        val isHtml = kind == "offline-html" || kind.contains("html") ||
+            trimmed.startsWith("<!doctype", true) || trimmed.startsWith("<html", true)
+        ready = true; seek.isEnabled = true
+        if (isHtml) {
+            webView.visibility = View.VISIBLE
+            loadedHtml = base to body
+            pendingY = savedY
+            loadStyledHtml()
+        } else {
+            scroll.visibility = View.VISIBLE
+            textView.text = body.replace("\r\n", "\n")
+            scroll.post { scroll.scrollTo(0, savedY); updateProgress() }
+        }
     }
 
     private fun adjustNumber(key: String, delta: Float, min: Float, max: Float) {
