@@ -106,7 +106,10 @@ class NovelDetailActivity : Activity() {
                 withContext(Dispatchers.IO) {
                     DetailState(
                         localDownloadRecord(book.slug),
-                        NovelReadingStore(this@NovelDetailActivity).find(slug)?.volumeId,
+                        NovelReadingStore(this@NovelDetailActivity).let {
+                            it.awaitPendingWrites()
+                            it.find(slug)?.volumeId
+                        },
                         NovelShelfStore(this@NovelDetailActivity).contains(slug)
                     )
                 }
@@ -189,10 +192,12 @@ class NovelDetailActivity : Activity() {
                 val volumes = repository.loadVolumes(slug)
                 val shelf = NovelShelfStore(this@NovelDetailActivity)
                 shelf.updateMetadata(book.slug, book.name, book.lastUpdated, book.cover)
+                val reading = NovelReadingStore(this@NovelDetailActivity)
+                reading.awaitPendingWrites()
                 LoadedDetail(
                     book, volumes, DetailState(
                         localDownloadRecord(slug),
-                        NovelReadingStore(this@NovelDetailActivity).find(slug)?.volumeId,
+                        reading.find(slug)?.volumeId,
                         shelf.contains(slug)
                     )
                 )
@@ -410,8 +415,10 @@ class NovelDetailActivity : Activity() {
                         toast("刪除離線檔失敗：${error.message}")
                     } finally {
                         deletingDownload = false
-                        loadedBook?.let { render(it, loadedVolumes) }
-                        refreshState()
+                        if (!isFinishing && !isDestroyed) {
+                            loadedBook?.let { render(it, loadedVolumes) }
+                            refreshState()
+                        }
                     }
                 }
             }

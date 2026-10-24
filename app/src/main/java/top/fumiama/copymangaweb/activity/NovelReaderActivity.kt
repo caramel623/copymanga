@@ -172,8 +172,10 @@ class NovelReaderActivity : Activity() {
         val bookmarkY = intent.getIntExtra("bookmark_y", 0).takeIf { intent.hasExtra("bookmark_y") }
         val chapter = try {
             withContext(Dispatchers.IO) {
-                val savedY = bookmarkY ?: NovelReadingStore(this@NovelReaderActivity).find(slug)
-                    ?.takeIf { it.volumeId == volumeId }?.scrollY ?: 0
+                val savedY = bookmarkY ?: NovelReadingStore(this@NovelReaderActivity).let {
+                    it.awaitPendingWrites()
+                    it.find(slug)?.takeIf { record -> record.volumeId == volumeId }?.scrollY
+                } ?: 0
                 offlineChapter()?.copy(scrollY = savedY) ?: run {
                     val repository = NovelRepository(this@NovelReaderActivity)
                     val metadata = repository.loadVolume(slug, volumeId)

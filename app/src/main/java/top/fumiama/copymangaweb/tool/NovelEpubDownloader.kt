@@ -96,7 +96,7 @@ class NovelEpubDownloader(private val context: Context) {
                 )
             )
             recordSaved = true
-            partsDir.deleteRecursively()
+            runCatching { partsDir.deleteRecursively() }
             file
         } catch (t: Throwable) {
             builder.abort()

@@ -1,11 +1,11 @@
 package top.fumiama.copymangaweb.tool
 
 import android.content.Context
+import android.util.Log
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
 import java.util.concurrent.Executors
-import android.util.Log
 
 data class NovelReadingRecord(
     val slug: String, val bookName: String, val volumeId: String, val volumeName: String,
@@ -49,6 +49,15 @@ class NovelReadingStore(context: Context) {
     fun saveAsync(record: NovelReadingRecord) {
         writer.execute {
             runCatching { save(record) }.onFailure { Log.w("NovelReadingStore", "Unable to save reading position", it) }
+        }
+    }
+
+    fun awaitPendingWrites() {
+        try {
+            writer.submit {}.get()
+        } catch (interrupted: InterruptedException) {
+            Thread.currentThread().interrupt()
+            throw interrupted
         }
     }
 
