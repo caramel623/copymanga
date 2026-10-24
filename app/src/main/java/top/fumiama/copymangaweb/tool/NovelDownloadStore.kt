@@ -46,11 +46,13 @@ class NovelDownloadStore(private val indexFile: File, private val novelsDir: Fil
 
     fun recordFor(slug: String): NovelDownloadRecord? = list().firstOrNull { it.slug == slug }
 
-    fun fileFor(slug: String): File? {
-        val record = recordFor(slug) ?: return null
+    fun fileFor(slug: String): File? = recordFor(slug)?.let(::fileFor)
+
+    @Synchronized
+    fun fileFor(record: NovelDownloadRecord): File? {
         val file = epubFile(record.slug)
         if (file.isFile) return file
-        removeRecord(slug)
+        removeRecord(record.slug)
         return null
     }
 
@@ -64,6 +66,7 @@ class NovelDownloadStore(private val indexFile: File, private val novelsDir: Fil
         removeRecord(slug)
     }
 
+    @Synchronized
     private fun removeRecord(slug: String) = write(list().filterNot { it.slug == slug })
 
     private fun JSONArray?.toStringList(): List<String> =

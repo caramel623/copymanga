@@ -79,6 +79,16 @@ class NovelDownloadStoreTest {
     }
 
     @Test
+    fun legacyRecordWithoutTraditionalFieldDefaultsToFalse() {
+        val store = store()
+        File(temporaryFolder.root, "novel_downloads.json").writeText(
+            """[{"slug":"bqg_1","name":"書名","sizeBytes":100,"downloadedAt":7,"volumeIds":["v1"]}]"""
+        )
+
+        assertFalse(store.recordFor("bqg_1")!!.traditional)
+    }
+
+    @Test
     fun epubFileSanitizesSlug() {
         val store = store()
 

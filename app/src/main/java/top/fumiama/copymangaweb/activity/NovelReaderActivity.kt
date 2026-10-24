@@ -24,6 +24,7 @@ import top.fumiama.copymangaweb.tool.NovelDownloadStore
 import top.fumiama.copymangaweb.tool.NovelReadingRecord
 import top.fumiama.copymangaweb.tool.NovelReadingStore
 import top.fumiama.copymangaweb.tool.PropertiesTools
+import top.fumiama.copymangaweb.tool.NovelTraditional
 import java.io.File
 
 class NovelReaderActivity : Activity() {
@@ -139,35 +140,44 @@ class NovelReaderActivity : Activity() {
         addView(Button(this@NovelReaderActivity).apply { text = "底色"; setOnClickListener { cycleTheme() } }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
     }
 
-    private fun offlineChapterBody(): String? = runCatching {
-        val store = NovelDownloadStore(this)
-        val epub = store.fileFor(slug) ?: return null
-        val index = store.recordFor(slug)?.volumeIds?.indexOf(volumeId) ?: -1
-        if (index < 0) return null
-        val reader = EpubChapterReader(epub)
-        reader.readChapter(reader.chapterHrefs()[index])
-    }.getOrNull()
+    private data class ReaderChapter(
+        val kind: String,
+        val base: String,
+        val body: String,
+        val preConverted: Boolean = false
+    )
+
+    private fun offlineChapter(): ReaderChapter? {
+        return try {
+            val store = NovelDownloadStore(this)
+            val record = store.recordFor(slug) ?: return null
+            val epub = store.fileFor(record) ?: return null
+            val index = record.volumeIds.indexOf(volumeId)
+            if (index < 0) return null
+            val reader = EpubChapterReader(epub)
+            val body = reader.readChapter(reader.chapterHrefs()[index])
+            ReaderChapter(
+                if (NovelChapterCodec.isPlain(body)) "offline-plain" else "offline-html",
+                "", body, record.traditional
+            )
+        } catch (_: Exception) {
+            null
+        }
+    }
 
     private fun load() = scope.launch {
         runCatching {
             withContext(Dispatchers.IO) {
-                offlineChapterBody()?.let { stored ->
-                    Triple(
-                        if (NovelChapterCodec.isPlain(stored)) "offline-plain" else "offline-html",
-                        "", stored
-                    )
-                } ?: run {
+                offlineChapter() ?: run {
                     val repository = NovelRepository(this@NovelReaderActivity)
                     val metadata = repository.loadVolume(slug, volumeId)
                     val (contentType, body) = repository.loadResource(metadata.address, metadata.encoding)
-                    Triple(contentType, metadata.address, body)
+                    ReaderChapter(contentType, metadata.address, body)
                 }
             }
-        }.onSuccess { (kind, base, originalBody) ->
+        }.onSuccess { (kind, base, originalBody, preConverted) ->
             progress.visibility = View.GONE
             val plain = if (kind == "offline-plain") NovelChapterCodec.toPlainText(originalBody) else originalBody
-            val preConverted = (kind == "offline-plain" || kind == "offline-html") &&
-                NovelDownloadStore(this@NovelReaderActivity).recordFor(slug)?.traditional == true
             val body = withContext(Dispatchers.Default) {
                 if (preConverted) plain else toTraditionalIfEnabled(plain)
             }
@@ -246,12 +256,7 @@ class NovelReaderActivity : Activity() {
     }
 
     private fun toTraditionalIfEnabled(text: String): String {
-        if (properties["ranobeTraditional"] == "false" || android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.Q) return text
-        return runCatching {
-            val type = Class.forName("android.icu.text.Transliterator")
-            val converter = type.getMethod("getInstance", String::class.java).invoke(null, "Simplified-Traditional")
-            type.getMethod("transliterate", String::class.java).invoke(converter, text) as String
-        }.getOrDefault(text)
+        return NovelTraditional.convertIfEnabled(properties, text)
     }
 
     override fun onPause() {

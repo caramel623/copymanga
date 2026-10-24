@@ -56,9 +56,12 @@ class NovelEpubDownloader(private val context: Context) {
         val volumes = repository.loadVolumes(slug)
         require(volumes.isNotEmpty()) { "目前沒有可下載的卷冊" }
         val partsDir = File(context.filesDir, "novel_parts/${store.sanitizedSlug(slug)}")
-        partsDir.mkdirs()
         val traditional = NovelTraditional.enabled(PropertiesTools(File("${context.filesDir}/settings.properties")))
-        val builder = EpubBuilder(store.epubFile(slug), "copymanga:$slug", book.name, book.author)
+        NovelDownloadParts.prepare(partsDir, traditional)
+        val epubTitle = if (traditional) NovelTraditional.convert(book.name) else book.name
+        val epubAuthor = if (traditional) NovelTraditional.convert(book.author) else book.author
+        val chapterTitles = volumes.map { if (traditional) NovelTraditional.convert(it.name) else it.name }
+        val builder = EpubBuilder(store.epubFile(slug), "copymanga:$slug", epubTitle, epubAuthor)
         return try {
             volumes.forEachIndexed { index, volume ->
                 currentCoroutineContext().ensureActive()
@@ -77,14 +80,16 @@ class NovelEpubDownloader(private val context: Context) {
                         }
                     }
                 }
-                builder.addChapter(href, volume.name, stored)
+                builder.addChapter(href, chapterTitles[index], stored)
                 onProgress(index + 1, volumes.size)
             }
             val file = builder.finish()
             store.markDownloaded(
                 NovelDownloadRecord(
-                    slug, book.name, book.author, file.length(), System.currentTimeMillis(),
-                    volumes.map { it.id }, volumes.map { it.name }, traditional
+                    slug, epubTitle, epubAuthor, file.length(), System.currentTimeMillis(),
+                    volumes.map { it.id },
+                    chapterTitles,
+                    traditional
                 )
             )
             partsDir.deleteRecursively()
