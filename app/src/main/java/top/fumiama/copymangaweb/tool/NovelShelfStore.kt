@@ -16,10 +16,9 @@ data class NovelShelfRecord(
 class NovelShelfStore(context: Context) {
     private val file = File(context.filesDir, "novel_shelf.json")
 
-    @Synchronized
-    fun list(): List<NovelShelfRecord> {
-        if (!file.isFile) return emptyList()
-        return runCatching {
+    fun list(): List<NovelShelfRecord> = synchronized(lock) {
+        if (!file.isFile) return@synchronized emptyList()
+        runCatching {
             val array = JSONArray(file.readText())
             (0 until array.length()).map { index ->
                 val item = array.getJSONObject(index)
@@ -31,21 +30,18 @@ class NovelShelfStore(context: Context) {
         }.getOrDefault(emptyList())
     }
 
-    fun contains(slug: String): Boolean = list().any { it.slug == slug }
+    fun contains(slug: String): Boolean = synchronized(lock) { list().any { it.slug == slug } }
 
-    @Synchronized
-    fun updateMetadata(slug: String, name: String, updated: String, cover: String) {
+    fun updateMetadata(slug: String, name: String, updated: String, cover: String) = synchronized(lock) {
         write(list().map { if (it.slug == slug) it.copy(name = name, lastUpdated = updated, cover = cover) else it })
     }
 
-    @Synchronized
-    fun add(record: NovelShelfRecord) {
+    fun add(record: NovelShelfRecord) = synchronized(lock) {
         val records = list().filterNot { it.slug == record.slug }.toMutableList().apply { add(0, record) }
         write(records)
     }
 
-    @Synchronized
-    fun remove(slug: String) = write(list().filterNot { it.slug == slug })
+    fun remove(slug: String) = synchronized(lock) { write(list().filterNot { it.slug == slug }) }
 
     private fun write(records: List<NovelShelfRecord>) {
         val array = JSONArray()
@@ -61,5 +57,9 @@ class NovelShelfStore(context: Context) {
             tmp.writeText(array.toString())
             if (!tmp.renameTo(target)) target.writeText(tmp.readText())
         }
+    }
+
+    companion object {
+        private val lock = Any()
     }
 }

@@ -9,6 +9,7 @@ import android.graphics.drawable.GradientDrawable
 import android.graphics.drawable.RippleDrawable
 import android.os.Build
 import android.os.Bundle
+import android.util.Log
 import android.text.TextUtils
 import android.view.Gravity
 import android.view.View
@@ -94,28 +95,32 @@ class NovelDetailActivity : Activity() {
             root.setBackgroundColor(palette.background)
             progress.indeterminateTintList = ColorStateList.valueOf(palette.accent)
         }
-        loadedBook?.let { book ->
-            val version = stateVersion
-            scope.launch {
-                val state = try {
-                    withContext(Dispatchers.IO) {
-                        DetailState(
-                            localDownloadRecord(book.slug),
-                            NovelReadingStore(this@NovelDetailActivity).find(slug)?.volumeId,
-                            NovelShelfStore(this@NovelDetailActivity).contains(slug)
-                        )
-                    }
-                } catch (cancelled: CancellationException) {
-                    throw cancelled
-                } catch (_: Exception) {
-                    return@launch
+        refreshState()
+    }
+
+    private fun refreshState() {
+        val book = loadedBook ?: return
+        val version = stateVersion
+        scope.launch {
+            val state = try {
+                withContext(Dispatchers.IO) {
+                    DetailState(
+                        localDownloadRecord(book.slug),
+                        NovelReadingStore(this@NovelDetailActivity).find(slug)?.volumeId,
+                        NovelShelfStore(this@NovelDetailActivity).contains(slug)
+                    )
                 }
-                if (version != stateVersion || downloading || deletingDownload) return@launch
-                downloadRecord = state.downloadRecord
-                lastReadVolumeId = state.lastReadVolumeId
-                inShelf = state.inShelf
-                loadedBook?.let { render(it, loadedVolumes) }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                Log.w("NovelDetailActivity", "Unable to refresh novel state", error)
+                return@launch
             }
+            if (version != stateVersion || downloading || deletingDownload) return@launch
+            downloadRecord = state.downloadRecord
+            lastReadVolumeId = state.lastReadVolumeId
+            inShelf = state.inShelf
+            loadedBook?.let { render(it, loadedVolumes) }
         }
     }
 
@@ -382,6 +387,7 @@ class NovelDetailActivity : Activity() {
             stateVersion++
             downloading = false
             loadedBook?.let { render(it, loadedVolumes) }
+            refreshState()
         }
     }
 
@@ -405,6 +411,7 @@ class NovelDetailActivity : Activity() {
                     } finally {
                         deletingDownload = false
                         loadedBook?.let { render(it, loadedVolumes) }
+                        refreshState()
                     }
                 }
             }

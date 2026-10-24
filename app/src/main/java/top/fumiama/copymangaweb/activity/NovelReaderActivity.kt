@@ -277,7 +277,9 @@ class NovelReaderActivity : Activity() {
             ::scroll.isInitialized -> scroll.scrollY
             else -> 0
         }
-        if (ready) NovelReadingStore(this).save(NovelReadingRecord(slug, bookName, volumeId, volumeName, y, System.currentTimeMillis()))
+        if (ready) NovelReadingStore(applicationContext).saveAsync(
+            NovelReadingRecord(slug, bookName, volumeId, volumeName, y, System.currentTimeMillis())
+        )
     }
 
     private fun currentY() = if (webView.visibility == View.VISIBLE) webView.scrollY else scroll.scrollY
