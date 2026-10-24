@@ -63,6 +63,7 @@ class NovelEpubDownloader(private val context: Context) {
         val chapterTitles = volumes.map { if (traditional) NovelTraditional.convert(it.name) else it.name }
         val builder = EpubBuilder(store.epubFile(slug), "copymanga:$slug", epubTitle, epubAuthor)
         var epubFinalized = false
+        var recordSaved = false
         return try {
             volumes.forEachIndexed { index, volume ->
                 currentCoroutineContext().ensureActive()
@@ -86,7 +87,6 @@ class NovelEpubDownloader(private val context: Context) {
             }
             val file = builder.finish()
             epubFinalized = true
-            check(partsDir.deleteRecursively()) { "Unable to remove completed novel download parts: $partsDir" }
             store.markDownloaded(
                 NovelDownloadRecord(
                     slug, epubTitle, epubAuthor, file.length(), System.currentTimeMillis(),
@@ -95,10 +95,12 @@ class NovelEpubDownloader(private val context: Context) {
                     traditional
                 )
             )
+            recordSaved = true
+            partsDir.deleteRecursively()
             file
         } catch (t: Throwable) {
             builder.abort()
-            if (epubFinalized) store.epubFile(slug).delete()
+            if (epubFinalized && !recordSaved) store.epubFile(slug).delete()
             throw t
         }
     }

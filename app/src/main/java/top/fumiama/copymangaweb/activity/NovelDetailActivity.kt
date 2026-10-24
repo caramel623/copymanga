@@ -38,6 +38,13 @@ import top.fumiama.copymangaweb.tool.PropertiesTools
 import java.io.File
 
 class NovelDetailActivity : Activity() {
+    private data class LoadedDetail(
+        val book: NovelBook,
+        val volumes: List<NovelVolume>,
+        val downloadRecord: NovelDownloadRecord?,
+        val lastReadVolumeId: String?
+    )
+
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private lateinit var root: LinearLayout
     private lateinit var content: LinearLayout
@@ -48,6 +55,7 @@ class NovelDetailActivity : Activity() {
     private var loadedBook: NovelBook? = null
     private var loadedVolumes: List<NovelVolume> = emptyList()
     private var downloadRecord: NovelDownloadRecord? = null
+    private var lastReadVolumeId: String? = null
     private var downloading = false
     private var downloadButton: TextView? = null
     private val slug by lazy { intent.getStringExtra(EXTRA_SLUG).orEmpty() }
@@ -79,7 +87,11 @@ class NovelDetailActivity : Activity() {
         }
         loadedBook?.let { book ->
             scope.launch {
-                downloadRecord = withContext(Dispatchers.IO) { localDownloadRecord(book.slug) }
+                val state = withContext(Dispatchers.IO) {
+                    localDownloadRecord(book.slug) to NovelReadingStore(this@NovelDetailActivity).find(slug)?.volumeId
+                }
+                downloadRecord = state.first
+                lastReadVolumeId = state.second
                 loadedBook?.let { render(it, loadedVolumes) }
             }
         }
@@ -148,14 +160,19 @@ class NovelDetailActivity : Activity() {
                 val repository = NovelRepository(this@NovelDetailActivity)
                 val book = repository.loadBook(slug)
                 val volumes = repository.loadVolumes(slug)
-                Triple(book, volumes, localDownloadRecord(slug))
+                NovelShelfStore(this@NovelDetailActivity).updateMetadata(book.slug, book.name, book.lastUpdated, book.cover)
+                LoadedDetail(
+                    book, volumes, localDownloadRecord(slug),
+                    NovelReadingStore(this@NovelDetailActivity).find(slug)?.volumeId
+                )
             }
-        }.onSuccess { (book, volumes, record) ->
-            loadedBook = book
-            loadedVolumes = volumes
-            downloadRecord = record
+        }.onSuccess { detail ->
+            loadedBook = detail.book
+            loadedVolumes = detail.volumes
+            downloadRecord = detail.downloadRecord
+            lastReadVolumeId = detail.lastReadVolumeId
             progress.visibility = View.GONE
-            render(book, volumes)
+            render(detail.book, detail.volumes)
         }.onFailure {
             progress.visibility = View.GONE
             toast("載入小說目錄失敗：${it.message}")
@@ -163,7 +180,6 @@ class NovelDetailActivity : Activity() {
     }
 
     private fun render(book: NovelBook, volumes: List<NovelVolume>) {
-        NovelShelfStore(this).updateMetadata(book.slug, book.name, book.lastUpdated, book.cover)
         content.removeAllViews()
         content.addView(createBookCard(book))
 
@@ -177,7 +193,6 @@ class NovelDetailActivity : Activity() {
         }
         content.addView(heading)
 
-        val savedVolumeId = NovelReadingStore(this).find(slug)?.volumeId
         val offlineIds = downloadRecord?.volumeIds?.toSet().orEmpty()
         if (volumes.isEmpty()) {
             content.addView(text("目前沒有可閱讀的卷冊", 15f, palette.secondaryText).apply {
@@ -187,7 +202,7 @@ class NovelDetailActivity : Activity() {
         } else {
             volumes.forEach { volume ->
                 content.addView(
-                    createVolumeRow(book.name, volume, savedVolumeId == volume.id, volume.id in offlineIds),
+                    createVolumeRow(book.name, volume, lastReadVolumeId == volume.id, volume.id in offlineIds),
                     LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
                         bottomMargin = dp(8)
                     }

@@ -70,7 +70,6 @@ class NovelDownloadStore(private val indexFile: File, private val novelsDir: Fil
     private fun JSONArray?.toStringList(): List<String> =
         if (this == null) emptyList() else (0 until length()).map { optString(it) }
 
-    @Synchronized
     private fun write(records: List<NovelDownloadRecord>) {
         val array = JSONArray()
         records.forEach { item ->
