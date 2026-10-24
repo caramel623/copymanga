@@ -13,6 +13,13 @@ object NovelDownloadParts {
             check(directory.deleteRecursively()) { "Unable to reset novel download parts: $directory" }
         }
         check(directory.isDirectory || directory.mkdirs()) { "Unable to create novel download parts: $directory" }
-        if (!marker.isFile) marker.writeText(expectedMode)
+        if (!marker.isFile) {
+            val tmp = File(directory, "${marker.name}.tmp")
+            tmp.writeText(expectedMode)
+            if (!tmp.renameTo(marker)) {
+                marker.writeText(tmp.readText())
+                tmp.delete()
+            }
+        }
     }
 }
