@@ -57,6 +57,7 @@ class NovelEpubDownloader(private val context: Context) {
         require(volumes.isNotEmpty()) { "目前沒有可下載的卷冊" }
         val partsDir = File(context.filesDir, "novel_parts/${store.sanitizedSlug(slug)}")
         partsDir.mkdirs()
+        val traditional = NovelTraditional.enabled(PropertiesTools(File("${context.filesDir}/settings.properties")))
         val builder = EpubBuilder(store.epubFile(slug), "copymanga:$slug", book.name, book.author)
         return try {
             volumes.forEachIndexed { index, volume ->
@@ -65,7 +66,8 @@ class NovelEpubDownloader(private val context: Context) {
                 val partFile = File(partsDir, "$href.txt")
                 val stored = if (partFile.isFile) partFile.readText() else {
                     val metadata = repository.loadVolume(slug, volume.id)
-                    val (contentType, body) = repository.loadResource(metadata.address, metadata.encoding)
+                    val (contentType, fetched) = repository.loadResource(metadata.address, metadata.encoding)
+                    val body = if (traditional) NovelTraditional.convert(fetched) else fetched
                     NovelChapterCodec.toStored(contentType, body).also {
                         val tmp = File(partFile.parentFile, "${partFile.name}.tmp")
                         tmp.writeText(it)
@@ -82,7 +84,7 @@ class NovelEpubDownloader(private val context: Context) {
             store.markDownloaded(
                 NovelDownloadRecord(
                     slug, book.name, book.author, file.length(), System.currentTimeMillis(),
-                    volumes.map { it.id }, volumes.map { it.name }
+                    volumes.map { it.id }, volumes.map { it.name }, traditional
                 )
             )
             partsDir.deleteRecursively()

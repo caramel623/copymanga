@@ -12,7 +12,8 @@ data class NovelDownloadRecord(
     val sizeBytes: Long,
     val downloadedAt: Long,
     val volumeIds: List<String> = emptyList(),
-    val volumeNames: List<String> = emptyList()
+    val volumeNames: List<String> = emptyList(),
+    val traditional: Boolean = false
 )
 
 class NovelDownloadStore(private val indexFile: File, private val novelsDir: File) {
@@ -36,7 +37,8 @@ class NovelDownloadStore(private val indexFile: File, private val novelsDir: Fil
                     item.getString("slug"), item.optString("name"), item.optString("author"),
                     item.optLong("sizeBytes"), item.optLong("downloadedAt"),
                     item.optJSONArray("volumeIds").toStringList(),
-                    item.optJSONArray("volumeNames").toStringList()
+                    item.optJSONArray("volumeNames").toStringList(),
+                    item.optBoolean("traditional")
                 )
             }.sortedByDescending { it.downloadedAt }
         }.getOrDefault(emptyList())
@@ -76,6 +78,7 @@ class NovelDownloadStore(private val indexFile: File, private val novelsDir: Fil
                 put("sizeBytes", item.sizeBytes); put("downloadedAt", item.downloadedAt)
                 put("volumeIds", JSONArray(item.volumeIds))
                 put("volumeNames", JSONArray(item.volumeNames))
+                put("traditional", item.traditional)
             })
         }
         val tmp = File(indexFile.parentFile, "${indexFile.name}.tmp")

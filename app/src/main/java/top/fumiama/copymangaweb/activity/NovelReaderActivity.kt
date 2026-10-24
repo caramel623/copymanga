@@ -166,7 +166,11 @@ class NovelReaderActivity : Activity() {
         }.onSuccess { (kind, base, originalBody) ->
             progress.visibility = View.GONE
             val plain = if (kind == "offline-plain") NovelChapterCodec.toPlainText(originalBody) else originalBody
-            val body = withContext(Dispatchers.Default) { toTraditionalIfEnabled(plain) }
+            val preConverted = (kind == "offline-plain" || kind == "offline-html") &&
+                NovelDownloadStore(this@NovelReaderActivity).recordFor(slug)?.traditional == true
+            val body = withContext(Dispatchers.Default) {
+                if (preConverted) plain else toTraditionalIfEnabled(plain)
+            }
             val trimmed = body.trimStart()
             val isHtml = kind == "offline-html" || kind.contains("html") ||
                 trimmed.startsWith("<!doctype", true) || trimmed.startsWith("<html", true)

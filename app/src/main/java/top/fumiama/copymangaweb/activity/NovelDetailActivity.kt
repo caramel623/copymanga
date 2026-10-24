@@ -302,7 +302,7 @@ class NovelDetailActivity : Activity() {
     private fun confirmDeleteDownload(book: NovelBook) {
         android.app.AlertDialog.Builder(this)
             .setTitle("刪除離線檔")
-            .setMessage("刪除《${book.name}》的 EPUB 離線檔？书架記錄不受影響。")
+            .setMessage("刪除《${book.name}》的 EPUB 離線檔？書架記錄不受影響。")
             .setPositiveButton("刪除") { _, _ ->
                 NovelDownloadStore(this).removeDownload(book.slug)
                 loadedBook?.let { render(it, loadedVolumes) }

@@ -21,7 +21,7 @@ class NovelDownloadStoreTest {
 
     private fun record(slug: String = "bqg_1") = NovelDownloadRecord(
         slug = slug, name = "書名", author = "作者", sizeBytes = 100, downloadedAt = 7,
-        volumeIds = listOf("v1", "v2"), volumeNames = listOf("第一卷", "第二卷")
+        volumeIds = listOf("v1", "v2"), volumeNames = listOf("第一卷", "第二卷"), traditional = true
     )
 
     @Test
@@ -35,6 +35,7 @@ class NovelDownloadStoreTest {
         assertEquals("書名", loaded!!.name)
         assertEquals(listOf("v1", "v2"), loaded.volumeIds)
         assertEquals(listOf("第一卷", "第二卷"), loaded.volumeNames)
+        assertTrue(loaded.traditional)
     }
 
     @Test
