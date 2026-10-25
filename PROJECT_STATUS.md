@@ -1,10 +1,10 @@
 # PROJECT STATUS — 拷貝WEB
 
-更新日期：2026-07-17
+更新日期：2026-10-25
 
 目前分支：`agent/beta1`
 
-目前應用程式版本：`1.6.1`（versionCode `20260717`）
+目前應用程式版本：`2.3.2-web`（versionCode `2026102501`）
 遠端儲存庫：<https://github.com/caramel623/copymanga>
 
 ## 專案用途
@@ -23,6 +23,7 @@
 - 上一章／下一章按鈕位於第一張上方與最後一張下方
 - 閱讀器返回章節選擇頁；章節頁再次返回可回到書架（V1.6.1 Hotfix）
 - 輕小說簡體轉繁體，預設開啟
+- 輕小說整本 EPUB 下載、卷級續傳、離線閱讀；下載時轉繁體
 - 下載位置、資料夾模式或每章 ZIP 設定
 - 圖片依 `001.JPG`、`002.JPG` 格式命名
 - 下載背景網址收集與圖片下載分階段顯示進度
@@ -38,6 +39,7 @@
 - 持續降低程式對網站 DOM class 名稱及網址格式的耦合。
 - 檢查並整理舊版亂碼字串與部分過時 Android API 警告。
 - 若要在預設分支直接 Clone 最新版本，需決定是否將 `agent/beta1` 合併到 GitHub 預設分支。
+- 下一次修復：處理程序在 EPUB 完成、下載索引寫入前中止時，暫留未索引 EPUB／parts 的低風險問題（目前只暫佔磁碟，同書再次下載可覆蓋）。
 
 ## 已知問題與風險
 
@@ -72,23 +74,17 @@
 
 ## 最近正在處理的工作
 
-最近完成 V1.6.1 Hotfix：閱讀器返回章節選擇頁後，再按返回不會回到舊章節網址並重新啟動閱讀器。實機已確認返回行為正確。
+準備發行 `2.3.2-web`：小說 EPUB 下載支援卷級續傳、下載時簡轉繁及離線閱讀。Samsung R58M93BN1HW 已實機驗證下載與斷網閱讀。
 
 ## 建議下一步
 
-1. 提交本次移轉文件、範例設定及 `.gitignore` 更新。
-2. 在新電腦 Clone `agent/beta1`，安裝 JDK 17 與 Android SDK 36。
-3. 安全還原 Debug／Release 簽章並驗證可覆蓋安裝。
-4. 修正 instrumented test applicationId，新增返回與下載流程測試。
-5. 規劃正式 release signing config，避免繼續用 Debug APK 當正式發行檔。
+1. 修復程序在 EPUB 完成、下載索引寫入前中止時，暫留未索引 EPUB／parts 的低風險問題。
+2. 修正 instrumented test applicationId，補充返回與小說下載流程測試。
+3. 規劃正式 release signing config；目前個人發行仍沿用共用 debug keystore。
 
 ## 最近測試結果
 
-- V1.6.1 `assembleDebug`：成功。
-- 2026-07-17 `testDebugUnitTest`：成功；現有 1 個範例單元測試通過。
-- 2026-07-17 `assembleDebug`：成功。
-- 2026-07-17 `connectedDebugAndroidTest`：未執行；`adb devices` 沒有連線裝置。不可視為通過。
-- 2026-07-17 `assembleRelease`：執行超過 4 分鐘後因工具時限終止，沒有產生 Release APK，也沒有取得明確 Gradle 失敗；狀態為未驗證，不可視為通過。
+- 2026-10-25 `testDebugUnitTest`：成功，26 項測試通過。
+- 2026-10-25 `assembleDebug`：成功。
+- 2026-10-24 Samsung R58M93BN1HW：小說 EPUB 下載完成，斷網後第一卷可離線閱讀。
 - 建置警告：AGP 8.6.1／compileSdk 36 組合超出官方已測範圍、`android.defaults.buildfeatures.buildconfig` 將棄用、Glide compiler 應由 `annotationProcessor` 遷移至 `kapt`。
-- 實體 Samsung SM-A305GN：閱讀器返回章節選擇頁後，再返回書架成功。
-- 閱讀器、下載入口、背景網址收集、圖片下載進度：使用者確認正常。

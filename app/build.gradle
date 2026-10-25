@@ -10,8 +10,8 @@ android {
         applicationId "top.fumiama.copymangaweb"
         minSdkVersion 23
         targetSdkVersion 36
-        versionCode 2026101001
-        versionName '2.3.1-web'
+        versionCode 2026102501
+        versionName '2.3.2-web'
         resConfigs "zh", "zh-rCN"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
