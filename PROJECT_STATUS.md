@@ -74,7 +74,7 @@
 
 ## 最近正在處理的工作
 
-準備發行 `2.3.2-web`：小說 EPUB 下載支援卷級續傳、下載時簡轉繁及離線閱讀。Samsung R58M93BN1HW 已實機驗證下載與斷網閱讀。
+`2.3.2-web` 已正式發行：小說 EPUB 下載支援卷級續傳、下載時簡轉繁及離線閱讀。Samsung R58M93BN1HW 已實機驗證小說下載與斷網閱讀，並安裝 Release APK 啟動成功。
 
 ## 建議下一步
 
@@ -86,5 +86,7 @@
 
 - 2026-10-25 `testDebugUnitTest`：成功，26 項測試通過。
 - 2026-10-25 `assembleDebug`：成功。
+- 2026-10-25 `assembleRelease`：成功（含 R8/minify）；APK 簽章與 `2.3.1-web` 相同，可覆蓋安裝。
+- 2026-10-25 Samsung R58M93BN1HW：Release APK 安裝與啟動成功。
 - 2026-10-24 Samsung R58M93BN1HW：小說 EPUB 下載完成，斷網後第一卷可離線閱讀。
 - 建置警告：AGP 8.6.1／compileSdk 36 組合超出官方已測範圍、`android.defaults.buildfeatures.buildconfig` 將棄用、Glide compiler 應由 `annotationProcessor` 遷移至 `kapt`。
