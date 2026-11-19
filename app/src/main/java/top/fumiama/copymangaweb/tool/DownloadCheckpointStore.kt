@@ -25,23 +25,25 @@ class DownloadCheckpointStore(private val root: File) {
 
     private fun checkpointFile(hash: String) = File(root, "${safeHash(hash)}.json")
 
-    fun stageDirectory(hash: String) = File(root, "${safeHash(hash)}.images").apply { mkdirs() }
+    fun stageDirectory(hash: String) = synchronized(lock) {
+        File(root, "${safeHash(hash)}.images").apply { mkdirs() }
+    }
 
-    fun stageImage(hash: String, index: Int) = File(stageDirectory(hash), "%03d.JPG".format(index + 1))
+    fun stageImage(hash: String, index: Int) = synchronized(lock) {
+        File(stageDirectory(hash), "%03d.JPG".format(index + 1))
+    }
 
-    @Synchronized
-    fun load(hash: String): DownloadCheckpoint? {
+    fun load(hash: String): DownloadCheckpoint? = synchronized(lock) {
         val file = checkpointFile(hash)
-        if (!file.isFile) return null
-        return runCatching {
+        if (!file.isFile) return@synchronized null
+        runCatching {
             gson.fromJson(file.readText(), DownloadCheckpoint::class.java)?.takeIf {
                 it.hash == hash && it.imageUrls.isNotEmpty()
             }
         }.getOrNull()
     }
 
-    @Synchronized
-    fun save(checkpoint: DownloadCheckpoint) {
+    fun save(checkpoint: DownloadCheckpoint) = synchronized(lock) {
         root.mkdirs()
         checkpoint.updatedAt = System.currentTimeMillis()
         val target = checkpointFile(checkpoint.hash)
@@ -54,8 +56,7 @@ class DownloadCheckpointStore(private val root: File) {
         }
     }
 
-    @Synchronized
-    fun storeUrls(hash: String, comicName: String, urls: Array<String>): DownloadCheckpoint {
+    fun storeUrls(hash: String, comicName: String, urls: Array<String>): DownloadCheckpoint = synchronized(lock) {
         val existing = load(hash)
         val sameUrls = existing?.imageUrls?.contentEquals(urls) == true
         val checkpoint = if (sameUrls) existing!! else {
@@ -65,10 +66,9 @@ class DownloadCheckpointStore(private val root: File) {
         checkpoint.comicName = comicName
         if (checkpoint.completed.size != urls.size) checkpoint.completed = BooleanArray(urls.size)
         save(checkpoint)
-        return checkpoint
+        checkpoint
     }
 
-    @Synchronized
     fun prepareDownload(
         hash: String,
         comicName: String,
@@ -76,24 +76,22 @@ class DownloadCheckpointStore(private val root: File) {
         urls: Array<String>,
         compressZip: Boolean,
         treeUri: String?
-    ): DownloadCheckpoint {
+    ): DownloadCheckpoint = synchronized(lock) {
         val checkpoint = storeUrls(hash, comicName, urls)
         checkpoint.outputName = outputName
         checkpoint.compressZip = compressZip
         checkpoint.treeUri = treeUri
         save(checkpoint)
-        return checkpoint
+        checkpoint
     }
 
-    @Synchronized
-    fun markCompleted(checkpoint: DownloadCheckpoint, index: Int) {
-        if (index !in checkpoint.completed.indices) return
+    fun markCompleted(checkpoint: DownloadCheckpoint, index: Int) = synchronized(lock) {
+        if (index !in checkpoint.completed.indices) return@synchronized
         checkpoint.completed[index] = true
         save(checkpoint)
     }
 
-    @Synchronized
-    fun sweepInvalid(): Int {
+    fun sweepInvalid(): Int = synchronized(lock) {
         var removed = 0
         val validHashes = HashSet<String>()
         for (file in root.listFiles().orEmpty()) {
@@ -107,7 +105,7 @@ class DownloadCheckpointStore(private val root: File) {
                         checkpoint.comicName.isNotBlank() &&
                         checkpoint.imageUrls.isNotEmpty() &&
                         file.name == "${safeHash(checkpoint.hash)}.json"
-                    if (valid) validHashes.add(checkpoint!!.hash) else if (file.delete()) removed++
+                    if (valid) validHashes.add(safeHash(checkpoint!!.hash)) else if (file.delete()) removed++
                 }
                 file.isFile && file.name.endsWith(".json.tmp") -> if (file.delete()) removed++
             }
@@ -116,11 +114,10 @@ class DownloadCheckpointStore(private val root: File) {
             if (file.isDirectory && file.name.endsWith(".images") &&
                 file.name.removeSuffix(".images") !in validHashes && file.deleteRecursively()) removed++
         }
-        return removed
+        removed
     }
 
-    @Synchronized
-    fun pendingForComic(comicName: String): List<DownloadCheckpoint> =
+    fun pendingForComic(comicName: String): List<DownloadCheckpoint> = synchronized(lock) {
         root.listFiles { file -> file.isFile && file.extension == "json" }
             ?.mapNotNull { file ->
                 runCatching {
@@ -130,11 +127,16 @@ class DownloadCheckpointStore(private val root: File) {
             }
             ?.sortedBy { it.updatedAt }
             ?: emptyList()
+    }
 
-    @Synchronized
-    fun clear(hash: String) {
+    fun clear(hash: String) = synchronized(lock) {
         checkpointFile(hash).delete()
         File(root, "${safeHash(hash)}.json.tmp").delete()
         File(root, "${safeHash(hash)}.images").deleteRecursively()
+    }
+
+    companion object {
+        // One store instance is created per DlActivity, so lock across instances.
+        private val lock = Any()
     }
 }

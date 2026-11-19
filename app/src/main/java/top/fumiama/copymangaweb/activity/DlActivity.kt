@@ -48,6 +48,7 @@ class DlActivity : ToolsBoxActivity() {
     private var canDl = false
     private lateinit var mangaDlTools: MangaDlTools
     val dlRecord by lazy { DlRecordStore(filesDir) }
+    private var sweptCheckpoints = false
     var multiSelect = false
 
     @SuppressLint("SetTextI18n")
@@ -223,9 +224,16 @@ class DlActivity : ToolsBoxActivity() {
     }
 
     private fun resumePendingDownloads() {
-        val swept = mangaDlTools.sweepInvalidCheckpoints()
-        if (swept > 0) Toast.makeText(this, "已清除 $swept 筆異常下載紀錄", Toast.LENGTH_SHORT).show()
         if (haveDlStarted || canDl || tbtnlist.isEmpty()) return
+        if (!sweptCheckpoints) {
+            sweptCheckpoints = true
+            Thread {
+                val swept = mangaDlTools.sweepInvalidCheckpoints()
+                if (swept > 0) runOnUiThread {
+                    Toast.makeText(this, "已清除 $swept 筆異常下載紀錄", Toast.LENGTH_SHORT).show()
+                }
+            }.start()
+        }
         val hashes = mangaDlTools.pendingHashes(comicName)
         if (hashes.isEmpty()) return
         val pending = tbtnlist.filter { it.hash in hashes }

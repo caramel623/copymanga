@@ -365,7 +365,7 @@ class NovelDetailActivity : Activity() {
 
     private fun hasRemoteUpdates(): Boolean {
         val record = downloadRecord ?: return false
-        return loadedVolumes.map { it.id } != record.volumeIds
+        return loadedVolumes.isNotEmpty() && loadedVolumes.map { it.id } != record.volumeIds
     }
 
     private fun updateDownloadButton(button: TextView) {

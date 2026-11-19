@@ -3,10 +3,12 @@ package top.fumiama.copymangaweb
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import top.fumiama.copymangaweb.tool.DownloadCheckpointStore
+import java.io.File
 import java.nio.file.Files
 
 class DownloadCheckpointStoreTest {
@@ -55,6 +57,29 @@ class DownloadCheckpointStoreTest {
             assertEquals(2, changed.completed.size)
             assertFalse(changed.completed.any { it })
             assertFalse(store.stageImage("chapter", 0).isFile)
+        } finally {
+            root.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun sweepRemovesCorruptTmpAndOrphanImagesButKeepsValidCheckpoint() {
+        val root = Files.createTempDirectory("copymanga-checkpoint-sweep").toFile()
+        try {
+            val store = DownloadCheckpointStore(root)
+            store.storeUrls("valid", "comic", arrayOf("https://example/1.jpg"))
+            store.stageImage("valid", 0).writeBytes(byteArrayOf(1))
+            File(root, "valid.json.tmp").writeText("half written")
+            File(root, "broken.json").writeText("{not json")
+            File(root, "orphan.images").mkdirs()
+
+            assertEquals(3, store.sweepInvalid())
+
+            assertNotNull(store.load("valid"))
+            assertTrue(store.stageImage("valid", 0).isFile)
+            assertFalse(File(root, "valid.json.tmp").exists())
+            assertFalse(File(root, "broken.json").exists())
+            assertFalse(File(root, "orphan.images").exists())
         } finally {
             root.deleteRecursively()
         }

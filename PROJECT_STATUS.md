@@ -87,6 +87,7 @@
 
 ## 最近測試結果
 
+- 2026-11-20 `testDebugUnitTest`：成功，29 項測試通過（新增 checkpoint 清理測試）。
 - 2026-11-19 `testDebugUnitTest`：成功，28 項測試通過（新增增量更新 parts 沿用與 parts 清除測試）。
 - 2026-11-19 `assembleDebug`：成功。
 - 2026-10-25 `testDebugUnitTest`：成功，26 項測試通過。
