@@ -16,10 +16,15 @@ data class NovelDownloadRecord(
     val traditional: Boolean = false
 )
 
-class NovelDownloadStore(private val indexFile: File, private val novelsDir: File) {
+class NovelDownloadStore(
+    private val indexFile: File,
+    private val novelsDir: File,
+    private val partsRoot: File? = null
+) {
     constructor(context: Context) : this(
         File(context.filesDir, "novel_downloads.json"),
-        context.getExternalFilesDir("novels") ?: File(context.filesDir, "novels")
+        context.getExternalFilesDir("novels") ?: File(context.filesDir, "novels"),
+        File(context.filesDir, "novel_parts")
     )
 
     fun sanitizedSlug(slug: String): String = slug.replace(Regex("[^A-Za-z0-9._-]"), "_")
@@ -62,6 +67,7 @@ class NovelDownloadStore(private val indexFile: File, private val novelsDir: Fil
 
     fun removeDownload(slug: String) = synchronized(lock) {
         epubFile(slug).delete()
+        partsRoot?.let { File(it, sanitizedSlug(slug)).deleteRecursively() }
         removeRecord(slug)
     }
 

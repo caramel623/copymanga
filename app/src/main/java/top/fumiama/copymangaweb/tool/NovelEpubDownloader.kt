@@ -96,7 +96,7 @@ class NovelEpubDownloader(private val context: Context) {
                 )
             )
             recordSaved = true
-            runCatching { partsDir.deleteRecursively() }
+            // Keep the text parts so a later update only fetches volumes that are missing.
             file
         } catch (t: Throwable) {
             builder.abort()

@@ -56,4 +56,16 @@ class NovelDownloadPartsTest {
 
         assertFalse(File(directory, "ch0001.xhtml.txt").exists())
     }
+
+    @Test
+    fun appendedVolumesKeepExistingPartsForUpdate() {
+        val directory = temporaryFolder.newFolder("parts")
+        NovelDownloadParts.prepare(directory, traditional = true, volumeIds = listOf("v1", "v2"))
+        File(directory, "ch0001.xhtml.txt").writeText("chapter v1")
+
+        NovelDownloadParts.prepare(directory, traditional = true, volumeIds = listOf("v1", "v2", "v3"))
+
+        assertEquals("chapter v1", File(directory, "ch0001.xhtml.txt").readText())
+        assertEquals("true\n2:v1\n2:v2\n2:v3", File(directory, ".resume-mode").readText())
+    }
 }

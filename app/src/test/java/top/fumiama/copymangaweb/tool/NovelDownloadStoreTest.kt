@@ -69,6 +69,23 @@ class NovelDownloadStoreTest {
     }
 
     @Test
+    fun removeDownloadDeletesKeptPartsDirectory() {
+        val partsRoot = temporaryFolder.newFolder("parts")
+        val store = NovelDownloadStore(
+            File(temporaryFolder.root, "novel_downloads.json"),
+            temporaryFolder.newFolder("novels"),
+            partsRoot
+        )
+        store.markDownloaded(record())
+        store.epubFile("bqg_1").writeText("x")
+        val parts = File(partsRoot, "bqg_1").apply { mkdirs() }
+
+        store.removeDownload("bqg_1")
+
+        assertFalse(parts.exists())
+    }
+
+    @Test
     fun corruptIndexReadsAsEmptyAndStillWritable() {
         val store = store()
         File(temporaryFolder.root, "novel_downloads.json").writeText("{not json")

@@ -344,10 +344,28 @@ class NovelDetailActivity : Activity() {
         setOnClickListener {
             when {
                 downloading || deletingDownload -> {}
-                downloadRecord != null -> confirmDeleteDownload(book)
+                downloadRecord != null -> showDownloadActions(book)
                 else -> startDownload(book)
             }
         }
+    }
+
+    private fun showDownloadActions(book: NovelBook) {
+        val builder = android.app.AlertDialog.Builder(this)
+            .setTitle("離線 EPUB")
+            .setNegativeButton("取消", null)
+        if (hasRemoteUpdates()) {
+            builder.setPositiveButton("下載更新") { _, _ -> startDownload(book) }
+            builder.setNeutralButton("刪除離線檔") { _, _ -> confirmDeleteDownload(book) }
+        } else {
+            builder.setPositiveButton("刪除離線檔") { _, _ -> confirmDeleteDownload(book) }
+        }
+        builder.show()
+    }
+
+    private fun hasRemoteUpdates(): Boolean {
+        val record = downloadRecord ?: return false
+        return loadedVolumes.map { it.id } != record.volumeIds
     }
 
     private fun updateDownloadButton(button: TextView) {
@@ -355,6 +373,7 @@ class NovelDetailActivity : Activity() {
         button.text = when {
             deletingDownload -> "刪除中…"
             downloading -> "⬇ 下載中…"
+            downloaded && hasRemoteUpdates() -> "↻ 已下載 · 有更新"
             downloaded -> "✓ 已下載 EPUB"
             else -> "⬇ 下載 EPUB"
         }
