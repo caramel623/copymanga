@@ -93,12 +93,41 @@ class DownloadCheckpointStore(private val root: File) {
     }
 
     @Synchronized
+    fun sweepInvalid(): Int {
+        var removed = 0
+        val validHashes = HashSet<String>()
+        for (file in root.listFiles().orEmpty()) {
+            when {
+                file.isFile && file.extension == "json" -> {
+                    val checkpoint = runCatching {
+                        gson.fromJson(file.readText(), DownloadCheckpoint::class.java)
+                    }.getOrNull()
+                    val valid = checkpoint != null &&
+                        checkpoint.hash.isNotBlank() &&
+                        checkpoint.comicName.isNotBlank() &&
+                        checkpoint.imageUrls.isNotEmpty() &&
+                        file.name == "${safeHash(checkpoint.hash)}.json"
+                    if (valid) validHashes.add(checkpoint!!.hash) else if (file.delete()) removed++
+                }
+                file.isFile && file.name.endsWith(".json.tmp") -> if (file.delete()) removed++
+            }
+        }
+        for (file in root.listFiles().orEmpty()) {
+            if (file.isDirectory && file.name.endsWith(".images") &&
+                file.name.removeSuffix(".images") !in validHashes && file.deleteRecursively()) removed++
+        }
+        return removed
+    }
+
+    @Synchronized
     fun pendingForComic(comicName: String): List<DownloadCheckpoint> =
         root.listFiles { file -> file.isFile && file.extension == "json" }
             ?.mapNotNull { file ->
-                runCatching { gson.fromJson(file.readText(), DownloadCheckpoint::class.java) }.getOrNull()
+                runCatching {
+                    gson.fromJson(file.readText(), DownloadCheckpoint::class.java)
+                        ?.takeIf { it.comicName == comicName && it.imageUrls.isNotEmpty() }
+                }.getOrNull()
             }
-            ?.filter { it.comicName == comicName && it.imageUrls.isNotEmpty() }
             ?.sortedBy { it.updatedAt }
             ?: emptyList()
 

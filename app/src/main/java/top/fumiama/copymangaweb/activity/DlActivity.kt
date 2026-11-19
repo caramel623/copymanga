@@ -223,6 +223,8 @@ class DlActivity : ToolsBoxActivity() {
     }
 
     private fun resumePendingDownloads() {
+        val swept = mangaDlTools.sweepInvalidCheckpoints()
+        if (swept > 0) Toast.makeText(this, "已清除 $swept 筆異常下載紀錄", Toast.LENGTH_SHORT).show()
         if (haveDlStarted || canDl || tbtnlist.isEmpty()) return
         val hashes = mangaDlTools.pendingHashes(comicName)
         if (hashes.isEmpty()) return

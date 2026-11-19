@@ -45,6 +45,8 @@
 
 # Application classes that will be serialized/deserialized over Gson
 -keep public class top.fumiama.copymangaweb.data.* { *; }
+# Persisted JSON; field names must stay stable across builds
+-keep class top.fumiama.copymangaweb.tool.DownloadCheckpoint { <fields>; <init>(); }
 
 # Prevent proguard from stripping interface information from TypeAdapter, TypeAdapterFactory,
 # JsonSerializer, JsonDeserializer instances (so they can be used in @JsonAdapter)

@@ -40,6 +40,8 @@ class MangaDlTools(activity: DlActivity) {
     fun pendingHashes(comicName: String): Set<String> =
         checkpointStore.pendingForComic(comicName).map { it.hash }.toSet()
 
+    fun sweepInvalidCheckpoints(): Int = checkpointStore.sweepInvalid()
+
     fun allocateChapterUrls(count: Int){
         p.reset()
         imgUrlsList = arrayOfNulls(count)
