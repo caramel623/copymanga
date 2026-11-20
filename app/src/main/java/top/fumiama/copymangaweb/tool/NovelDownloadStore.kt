@@ -58,7 +58,6 @@ class NovelDownloadStore(
         val file = epubFile(record.slug)
         if (file.isFile) return@synchronized file
         removeRecord(record.slug)
-        partsRoot?.let { File(it, sanitizedSlug(record.slug)).deleteRecursively() }
         null
     }
 

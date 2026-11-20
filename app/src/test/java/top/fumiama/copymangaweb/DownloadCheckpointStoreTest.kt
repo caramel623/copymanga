@@ -67,17 +67,18 @@ class DownloadCheckpointStoreTest {
         val root = Files.createTempDirectory("copymanga-checkpoint-sweep").toFile()
         try {
             val store = DownloadCheckpointStore(root)
-            store.storeUrls("valid", "comic", arrayOf("https://example/1.jpg"))
-            store.stageImage("valid", 0).writeBytes(byteArrayOf(1))
-            File(root, "valid.json.tmp").writeText("half written")
+            // "a/b" needs sanitizing to "a_b"; a regression in safeHash matching would delete its images.
+            store.storeUrls("a/b", "comic", arrayOf("https://example/1.jpg"))
+            store.stageImage("a/b", 0).writeBytes(byteArrayOf(1))
+            File(root, "a_b.json.tmp").writeText("half written")
             File(root, "broken.json").writeText("{not json")
             File(root, "orphan.images").mkdirs()
 
             assertEquals(3, store.sweepInvalid())
 
-            assertNotNull(store.load("valid"))
-            assertTrue(store.stageImage("valid", 0).isFile)
-            assertFalse(File(root, "valid.json.tmp").exists())
+            assertNotNull(store.load("a/b"))
+            assertTrue(store.stageImage("a/b", 0).isFile)
+            assertFalse(File(root, "a_b.json.tmp").exists())
             assertFalse(File(root, "broken.json").exists())
             assertFalse(File(root, "orphan.images").exists())
         } finally {

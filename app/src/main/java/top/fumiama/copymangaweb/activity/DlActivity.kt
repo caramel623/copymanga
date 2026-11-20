@@ -225,17 +225,22 @@ class DlActivity : ToolsBoxActivity() {
 
     private fun resumePendingDownloads() {
         if (haveDlStarted || canDl || tbtnlist.isEmpty()) return
-        if (!sweptCheckpoints) {
-            sweptCheckpoints = true
-            Thread {
-                val swept = mangaDlTools.sweepInvalidCheckpoints()
-                if (swept > 0) runOnUiThread {
-                    Toast.makeText(this, "已清除 $swept 筆異常下載紀錄", Toast.LENGTH_SHORT).show()
-                }
-            }.start()
-        }
-        val hashes = mangaDlTools.pendingHashes(comicName)
-        if (hashes.isEmpty()) return
+        Thread {
+            var swept = 0
+            if (!sweptCheckpoints) {
+                sweptCheckpoints = true
+                swept = mangaDlTools.sweepInvalidCheckpoints()
+            }
+            val hashes = mangaDlTools.pendingHashes(comicName)
+            runOnUiThread {
+                if (swept > 0) Toast.makeText(this, "已清除 $swept 個異常檔案", Toast.LENGTH_SHORT).show()
+                applyPendingDownloads(hashes)
+            }
+        }.start()
+    }
+
+    private fun applyPendingDownloads(hashes: Set<String>) {
+        if (haveDlStarted || canDl) return
         val pending = tbtnlist.filter { it.hash in hashes }
         if (pending.isEmpty()) return
         pending.forEach { button ->
