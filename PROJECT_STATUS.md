@@ -4,7 +4,7 @@
 
 目前分支：`agent/beta1`
 
-目前應用程式版本：`2.3.2-web`（versionCode `2026102501`）
+目前應用程式版本：`2.3.3-web`（versionCode `2026112101`）
 遠端儲存庫：<https://github.com/caramel623/copymanga>
 
 ## 專案用途
@@ -75,9 +75,9 @@
 
 ## 最近正在處理的工作
 
-`2.3.2-web` 已正式發行：小說 EPUB 下載支援卷級續傳、下載時簡轉繁及離線閱讀。Samsung R58M93BN1HW 已實機驗證小說下載與斷網閱讀，並安裝 Release APK 啟動成功。
+`2.3.3-web` 已正式發行：小說 EPUB 支援只下載新增卷的增量更新；章節下載會在啟動時清除異常續傳紀錄，checkpoint 使用跨 instance 共用鎖。
 
-小說增量更新（僅下載新增卷並重建 EPUB）已於 `agent/beta1` 完成，待下一版發行。
+`2.3.2-web` 已於 2026-10-25 發行：小說 EPUB 下載支援卷級續傳、下載時簡轉繁及離線閱讀。Samsung R58M93BN1HW 已實機驗證小說下載與斷網閱讀，並安裝 Release APK 啟動成功。
 
 ## 建議下一步
 
