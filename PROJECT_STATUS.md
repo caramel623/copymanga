@@ -4,7 +4,7 @@
 
 目前分支：`agent/beta1`
 
-目前應用程式版本：`2.3.3-web`（versionCode `2026112101`）
+目前應用程式版本：`2.3.4-web`（versionCode `2026112201`）
 遠端儲存庫：<https://github.com/caramel623/copymanga>
 
 ## 專案用途
@@ -30,6 +30,8 @@
 - 修正網站頁碼停在最後一張之前，造成網址收集不完成
 - 修正圖片網址未寫入章節陣列，造成下載無聲結束
 - 下載錯誤與網址缺失會明確回報並寫入 `Mydl` 日誌
+- 設定頁版本號可點擊開啟 GitHub Releases 查看最新版本
+- 不宣告 `REQUEST_INSTALL_PACKAGES`；App 不安裝任何其他 APK
 
 ## 尚未完成／需要改進
 
@@ -75,7 +77,9 @@
 
 ## 最近正在處理的工作
 
-`2.3.3-web` 已正式發行：小說 EPUB 支援只下載新增卷的增量更新；章節下載會在啟動時清除異常續傳紀錄，checkpoint 使用跨 instance 共用鎖。
+`2.3.4-web` 已發行：移除未使用的 `REQUEST_INSTALL_PACKAGES` 權限（Play 安全防護可能因此標示「可能有害」），設定頁版本號改為可點擊開啟 GitHub Releases。
+
+`2.3.3-web` 已於 2026-11-21 發行：小說 EPUB 支援只下載新增卷的增量更新；章節下載會在啟動時清除異常續傳紀錄，checkpoint 使用跨 instance 共用鎖。
 
 `2.3.2-web` 已於 2026-10-25 發行：小說 EPUB 下載支援卷級續傳、下載時簡轉繁及離線閱讀。Samsung R58M93BN1HW 已實機驗證小說下載與斷網閱讀，並安裝 Release APK 啟動成功。
 
@@ -87,6 +91,9 @@
 
 ## 最近測試結果
 
+- 2026-11-22 `testDebugUnitTest`：成功，29 項測試通過。
+- 2026-11-22 `assembleRelease`：成功（含 R8/minify）；已移除 `REQUEST_INSTALL_PACKAGES`。
+- 2026-11-22 Jotti 多引擎掃描：`2.3.3-web` APK 14 家引擎全部無檢出（0/14），Play 安全防護提示應為權限與簽章信任度造成。
 - 2026-11-21 `testDebugUnitTest`：成功，29 項測試通過（sweep 測試改用需消毒的 hash 驗證 `.images` 保留）。
 - 2026-11-20 `testDebugUnitTest`：成功，29 項測試通過（新增 checkpoint 清理測試）。
 - 2026-11-19 `testDebugUnitTest`：成功，28 項測試通過（新增增量更新 parts 沿用與 parts 清除測試）。

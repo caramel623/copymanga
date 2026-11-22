@@ -27,7 +27,10 @@ class SettingsActivity : Activity() {
         super.onCreate(savedInstanceState)
         binding = ActivitySettingsBinding.inflate(layoutInflater)
         setContentView(binding.root)
-        binding.appVersion.text = "目前版本：${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})"
+        binding.appVersion.text = "目前版本：${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})\n點擊查看最新版本"
+        binding.appVersion.setOnClickListener {
+            runCatching { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/caramel623/copymanga/releases"))) }
+        }
         properties = PropertiesTools(File("$filesDir/settings.properties"))
         binding.siteUrl.setText(SiteConfig.get(this))
         binding.novelApiUrl.setText(NovelConfig.get(this))
