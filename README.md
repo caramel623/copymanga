@@ -1,6 +1,6 @@
 # 拷貝WEB
 
-拷貝WEB 是以 Android WebView 包裝漫畫網站並提供原生閱讀與下載功能的 Android 應用程式。本分支目前正式版本為 `2.3.4-web`，最低支援 Android 6.0（API 23）。
+拷貝WEB 是以 Android WebView 包裝漫畫網站並提供原生閱讀與下載功能的 Android 應用程式。本分支目前正式版本為 `2.3.5-web`，最低支援 Android 6.0（API 23）。
 
 > 本儲存庫為 `fumiama/webreader` 的 fork，**供個人使用**：預設搭配 `mangacopy.com`（漫畫）與 `api.copy3000.com`（輕小說 API），簽章使用本地 `debug.keystore`（見下方簽章說明），未發布至 Play Store。
 
