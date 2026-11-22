@@ -205,9 +205,15 @@ class NovelDetailActivity : Activity() {
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (error: Exception) {
-            progress.visibility = View.GONE
-            toast("載入小說目錄失敗：${error.message}")
-            return@launch
+            // Offline: render what was downloaded instead of failing the whole page.
+            val offline = withContext(Dispatchers.IO) { offlineDetail() }
+            if (offline == null) {
+                progress.visibility = View.GONE
+                toast("載入小說目錄失敗：${error.message}")
+                return@launch
+            }
+            toast("離線模式：顯示已下載內容")
+            offline
         }
         loadedBook = detail.book
         loadedVolumes = detail.volumes
@@ -216,6 +222,21 @@ class NovelDetailActivity : Activity() {
         inShelf = detail.state.inShelf
         progress.visibility = View.GONE
         render(detail.book, detail.volumes)
+    }
+
+    /** Offline fallback: build the page from an already downloaded EPUB record. */
+    private fun offlineDetail(): LoadedDetail? {
+        val record = localDownloadRecord(slug) ?: return null
+        val volumes = record.volumeIds.mapIndexed { index, id ->
+            NovelVolume(id, record.volumeNames.getOrElse(index) { id }, null, null)
+        }
+        val book = NovelBook(record.name, record.slug, record.author, "", "", "")
+        val reading = NovelReadingStore(this)
+        reading.awaitPendingWrites()
+        return LoadedDetail(
+            book, volumes,
+            DetailState(record, reading.find(slug)?.volumeId, NovelShelfStore(this).contains(slug))
+        )
     }
 
     private fun render(book: NovelBook, volumes: List<NovelVolume>) {

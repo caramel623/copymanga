@@ -70,14 +70,21 @@ class NovelLibraryActivity : Activity() {
             }
         })
         val records = NovelShelfStore(this).list()
+        // Downloaded books stay reachable offline even when they were never added to the shelf.
+        val downloadStore = top.fumiama.copymangaweb.tool.NovelDownloadStore(this)
+        val shelfSlugs = records.map { it.slug }.toSet()
+        val downloaded = downloadStore.list()
+            .filter { it.slug !in shelfSlugs && downloadStore.epubFile(it.slug).isFile }
+            .map { top.fumiama.copymangaweb.tool.NovelShelfRecord(it.slug, it.name, "", it.downloadedAt) }
+        val entries = records + downloaded
         val progress = NovelReadingStore(this).list().associateBy { it.slug }
         val shelf = when (sortMode) {
-            "updated" -> records.sortedWith(compareByDescending<top.fumiama.copymangaweb.tool.NovelShelfRecord> { it.lastUpdated }.thenByDescending { it.addedAt })
-            "reading" -> records.sortedWith(compareByDescending<top.fumiama.copymangaweb.tool.NovelShelfRecord> { progress[it.slug]?.updatedAt ?: 0L }.thenByDescending { it.addedAt })
-            else -> records
+            "updated" -> entries.sortedWith(compareByDescending<top.fumiama.copymangaweb.tool.NovelShelfRecord> { it.lastUpdated }.thenByDescending { it.addedAt })
+            "reading" -> entries.sortedWith(compareByDescending<top.fumiama.copymangaweb.tool.NovelShelfRecord> { progress[it.slug]?.updatedAt ?: 0L }.thenByDescending { it.addedAt })
+            else -> entries
         }
         if (shelf.isEmpty()) list.addView(TextView(this).apply {
-            text = "尚未加入任何輕小說"; textSize = 18f; setPadding(16, 40, 16, 40)
+            text = "尚無加入書架或已下載的小說"; textSize = 18f; setPadding(16, 40, 16, 40)
             setTextColor(if (night) Color.LTGRAY else Color.DKGRAY)
         })
         shelf.forEachIndexed { index, record ->
